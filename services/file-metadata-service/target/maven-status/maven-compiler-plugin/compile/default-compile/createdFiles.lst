@@ -4,6 +4,7 @@ com/example/dropbox/metadata/files/FileService.class
 com/example/dropbox/metadata/shares/ShareResponse.class
 com/example/dropbox/metadata/auth/AuthResponse.class
 com/example/dropbox/metadata/folders/Folder.class
+com/example/dropbox/metadata/shares/ShareController.class
 com/example/dropbox/metadata/versions/CreateFileVersionRequest.class
 com/example/dropbox/metadata/folders/FolderChildrenResponse.class
 com/example/dropbox/metadata/auth/SecurityConfig.class
@@ -20,6 +21,7 @@ com/example/dropbox/metadata/files/FileController.class
 com/example/dropbox/metadata/auth/AuthController.class
 com/example/dropbox/metadata/users/UserRepository.class
 com/example/dropbox/metadata/shares/Share.class
+com/example/dropbox/metadata/shares/ShareService.class
 com/example/dropbox/metadata/files/CreateFileRequest.class
 com/example/dropbox/metadata/shares/ShareRepository.class
 com/example/dropbox/metadata/folders/FolderResponse.class
