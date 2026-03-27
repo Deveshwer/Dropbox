@@ -1,0 +1,34 @@
+# TODO: add Spring Boot configuration for the metadata service.
+server:
+    port: 8081
+
+spring:
+  application:
+    name: file-metadata-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dropbox_metadata
+    username: gkdeveshwer
+    password:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    org.hibernate.SQL: info
+
+app:
+  jwt:
+    secret: mysupersecurejwtsecretkey12345678
+    expiration: 3600000
