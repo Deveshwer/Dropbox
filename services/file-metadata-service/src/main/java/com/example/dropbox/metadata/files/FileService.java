@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.dropbox.metadata.shares.PermissionService;
 
 @Service
 @RequiredArgsConstructor
@@ -15,12 +16,13 @@ public class FileService {
 
     private final FileRecordRepository fileRecordRepository;
     private final FolderRepository folderRepository;
+    private final PermissionService permissionService;
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
         Folder folder = folderRepository.findById(request.folderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!folder.getOwnerId().equals(ownerId)) {
+        if (!permissionService.canWriteFolder(folder.getId(), ownerId)) {
             throw new ForbiddenOperationException("User not allowed to create a file under this folder");
         }
 

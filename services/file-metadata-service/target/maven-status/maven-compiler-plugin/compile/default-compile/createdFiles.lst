@@ -38,4 +38,5 @@ com/example/dropbox/metadata/folders/CreateFolderRequest.class
 com/example/dropbox/metadata/folders/FolderService.class
 com/example/dropbox/metadata/files/FileRecord.class
 com/example/dropbox/metadata/files/FileRecordRepository.class
+com/example/dropbox/metadata/shares/PermissionService.class
 com/example/dropbox/metadata/versions/FileVersionController.class

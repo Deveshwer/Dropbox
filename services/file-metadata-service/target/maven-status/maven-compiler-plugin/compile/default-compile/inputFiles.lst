@@ -26,6 +26,7 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderResponse.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/CreateShareRequest.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/PermissionService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/Share.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareController.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareRepository.java

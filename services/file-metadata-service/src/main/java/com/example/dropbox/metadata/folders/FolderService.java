@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.dropbox.metadata.shares.PermissionService;
 
 
 @Service
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class FolderService {
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
+    private final PermissionService permissionService;
 
     public FolderResponse create(CreateFolderRequest request, UUID ownerId) {
         Folder parentFolder = null;
@@ -24,7 +26,7 @@ public class FolderService {
             parentFolder = folderRepository.findById(request.parentFolderId())
             .orElseThrow(() -> new ResourceNotFoundException("Parent folder not found"));
 
-            if (!parentFolder.getOwnerId().equals(ownerId)) {
+            if (!permissionService.canWriteFolder(parentFolder.getId(), ownerId)) {
                 throw new ForbiddenOperationException("You are not allowed to create a folder in this parent folder");
             }
         }
@@ -44,7 +46,7 @@ public class FolderService {
         Folder folder = folderRepository.findById(folderId)
         .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!folder.getOwnerId().equals(userId)) {
+        if (!permissionService.canReadFolder(folderId, userId)) {
             throw new ForbiddenOperationException("You are not allowed to access this folder");
         }
         List<FolderResponse> folders = folderRepository.findByParentFolderId(folderId)

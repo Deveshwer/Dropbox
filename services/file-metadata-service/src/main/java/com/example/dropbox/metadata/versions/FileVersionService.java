@@ -10,19 +10,21 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.dropbox.metadata.shares.PermissionService;
 
 @Service
 @RequiredArgsConstructor
 public class FileVersionService {
     private final FileVersionRepository fileVersionRepository;
     private final FileRecordRepository fileRecordRepository;
+    private final PermissionService permissionService;
 
     @Transactional
     public FileVersionResponse create(UUID fileId, CreateFileVersionRequest request, UUID createdBy) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
-        if (!file.getOwnerId().equals(createdBy)) {
+        if (!permissionService.canWriteFile(fileId, createdBy)) {
                 throw new ForbiddenOperationException("User not allowed to create a version for this file.");
         }
 
@@ -52,7 +54,7 @@ public class FileVersionService {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
-        if (!file.getOwnerId().equals(userId)) {
+        if (!permissionService.canReadFile(fileId, userId)) {
                 throw new ForbiddenOperationException("User not allowed to access versions of this file.");
         }
 
