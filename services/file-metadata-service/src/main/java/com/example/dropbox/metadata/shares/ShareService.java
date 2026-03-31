@@ -130,6 +130,19 @@ public class ShareService {
         return toResponse(saved);
     }
 
+    public List<ShareResponse> listSharesForCurrentUser(UUID userId) {
+    return shareRepository.findBySharedWithUserIdAndStatus(userId, ShareStatus.ACTIVE.name())
+            .stream()
+            .filter(this::isNotExpired)
+            .map(this::toResponse)
+            .toList();
+    }
+
+    private boolean isNotExpired(Share share) {
+        Instant expiresAt = share.getExpiresAt();
+        return expiresAt == null || expiresAt.isAfter(Instant.now());
+    }
+
     private ShareResponse toResponse(Share share) {
         return new ShareResponse(
                 share.getId(),

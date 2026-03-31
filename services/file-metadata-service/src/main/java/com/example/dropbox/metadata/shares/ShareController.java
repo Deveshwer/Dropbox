@@ -44,4 +44,9 @@ public class ShareController {
     ) {
         return shareService.revokeShare(shareId, user.getId());
     }
+
+    @GetMapping("/me")
+    public List<ShareResponse> listMyShares(@AuthenticationPrincipal User user) {
+      return shareService.listSharesForCurrentUser(user.getId());
+    }
 }
