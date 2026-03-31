@@ -27,4 +27,9 @@ public class FolderController {
     public FolderChildrenResponse getChildren(@PathVariable UUID folderId, @AuthenticationPrincipal User user) {
         return folderService.getChildren(folderId, user.getId());
     }
+
+    @GetMapping("/{folderId}")
+    public FolderResponse getFolder(@PathVariable UUID folderId, @AuthenticationPrincipal User user) {
+        return folderService.getFolder(folderId, user.getId());
+    }
 }

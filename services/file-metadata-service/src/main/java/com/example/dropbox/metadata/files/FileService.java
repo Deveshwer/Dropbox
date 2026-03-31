@@ -39,6 +39,17 @@ public class FileService {
         return toResponse(saved);
     }
 
+    public FileResponse getFile(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (!permissionService.canReadFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to access this file");
+        }
+
+        return toResponse(file);
+    }
+
     private FileResponse toResponse(FileRecord file) {
         return new FileResponse(
                 file.getId(),

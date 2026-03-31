@@ -72,6 +72,17 @@ public class FolderService {
         );
     }
 
+    public FolderResponse getFolder(UUID folderId, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (!permissionService.canReadFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to access this folder");
+        }
+
+        return toFolderResponse(folder);
+    }
+
     private FileSummary toFileSummary(FileRecord file) {
         return new FileSummary(
                 file.getId(),
