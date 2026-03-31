@@ -24,6 +24,11 @@ public interface ShareRepository extends JpaRepository<Share, UUID> {
             String status
     );
 
+    List<Share> findByResourceTypeAndResourceId(
+        String resourceType,
+        UUID resourceId
+    );
+    
     List<Share> findByResourceTypeAndResourceIdAndStatus(
             String resourceType,
             UUID resourceId,

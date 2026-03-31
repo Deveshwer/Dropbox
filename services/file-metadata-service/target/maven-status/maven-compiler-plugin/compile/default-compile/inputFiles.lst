@@ -11,6 +11,7 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/ForbiddenOperationException.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/GlobalExceptionHandler.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/ResourceNotFoundException.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/ResourceType.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/CreateFileRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileController.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileRecord.java
@@ -29,9 +30,11 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/PermissionService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/Share.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareController.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/SharePermission.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareRepository.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareResponse.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareService.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/ShareStatus.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/users/User.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/users/UserRepository.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/versions/CreateFileVersionRequest.java

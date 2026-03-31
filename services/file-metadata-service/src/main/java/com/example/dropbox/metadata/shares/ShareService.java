@@ -1,5 +1,6 @@
 package com.example.dropbox.metadata.shares;
 
+import com.example.dropbox.metadata.common.ResourceType;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.ResourceNotFoundException;
 import com.example.dropbox.metadata.files.FileRecord;
@@ -9,6 +10,7 @@ import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.users.UserRepository;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,21 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ShareService {
 
-    private static final String RESOURCE_TYPE_FILE = "FILE";
-    private static final String RESOURCE_TYPE_FOLDER = "FOLDER";
-    private static final String PERMISSION_VIEWER = "VIEWER";
-    private static final String PERMISSION_EDITOR = "EDITOR";
-    private static final String STATUS_ACTIVE = "ACTIVE";
-
     private final ShareRepository shareRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
 
-    @Transactional
+    @Transactional // If anything fails in the function, rollback completely(function should be atomic)
     public ShareResponse createOrUpdateShare(CreateShareRequest request, UUID ownerId) {
-        validateResourceType(request.resourceType());
-        validatePermission(request.permission());
+        ResourceType resourceType = parseResourceType(request.resourceType());
+        SharePermission permission = parsePermission(request.permission());
         validateExpiry(request.expiresAt());
 
         if (ownerId.equals(request.sharedWithUserId())) {
@@ -41,10 +37,10 @@ public class ShareService {
         userRepository.findById(request.sharedWithUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Recipient user not found"));
 
-        validateOwnership(request.resourceType(), request.resourceId(), ownerId);
+        validateOwnership(resourceType, request.resourceId(), ownerId);
 
         Share share = shareRepository.findByResourceTypeAndResourceIdAndSharedWithUserId(
-                        request.resourceType(),
+                        resourceType.name(),
                         request.resourceId(),
                         request.sharedWithUserId()
                 )
@@ -53,28 +49,32 @@ public class ShareService {
         if (share.getId() == null) {
             share.setId(UUID.randomUUID());
             share.setCreatedAt(Instant.now());
-            share.setResourceType(request.resourceType());
+            share.setResourceType(resourceType.name());
             share.setResourceId(request.resourceId());
             share.setOwnerId(ownerId);
             share.setSharedWithUserId(request.sharedWithUserId());
         }
 
-        share.setPermission(request.permission());
-        share.setStatus(STATUS_ACTIVE);
+        share.setPermission(permission.name());
+        share.setStatus(ShareStatus.ACTIVE.name());
         share.setExpiresAt(request.expiresAt());
 
         Share saved = shareRepository.save(share);
         return toResponse(saved);
     }
 
-    private void validateResourceType(String resourceType) {
-        if (!RESOURCE_TYPE_FILE.equals(resourceType) && !RESOURCE_TYPE_FOLDER.equals(resourceType)) {
+    private ResourceType parseResourceType(String resourceType) {
+        try {
+            return ResourceType.valueOf(resourceType);
+        } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid resource type");
         }
     }
 
-    private void validatePermission(String permission) {
-        if (!PERMISSION_VIEWER.equals(permission) && !PERMISSION_EDITOR.equals(permission)) {
+    private SharePermission parsePermission(String permission) {
+        try {
+            return SharePermission.valueOf(permission);
+        } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid permission");
         }
     }
@@ -85,8 +85,8 @@ public class ShareService {
         }
     }
 
-    private void validateOwnership(String resourceType, UUID resourceId, UUID ownerId) {
-        if (RESOURCE_TYPE_FOLDER.equals(resourceType)) {
+    private void validateOwnership(ResourceType resourceType, UUID resourceId, UUID ownerId) {
+        if (ResourceType.FOLDER.equals(resourceType)) {
             Folder folder = folderRepository.findById(resourceId)
                     .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
@@ -103,6 +103,31 @@ public class ShareService {
         if (!file.getOwnerId().equals(ownerId)) {
             throw new ForbiddenOperationException("You are not allowed to share this file");
         }
+    }
+
+    public List<ShareResponse> listResourceShares(String resourceType, UUID resourceId, UUID ownerId) {
+    ResourceType parsedResourceType = parseResourceType(resourceType);
+    validateOwnership(parsedResourceType, resourceId, ownerId);
+
+    return shareRepository.findByResourceTypeAndResourceId(parsedResourceType.name(), resourceId)
+            .stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Transactional
+    public ShareResponse revokeShare(UUID shareId, UUID ownerId) {
+        Share share = shareRepository.findById(shareId)
+            .orElseThrow(() -> new ResourceNotFoundException("Share not found"));
+
+        if (!share.getOwnerId().equals(ownerId)) {
+            throw new ForbiddenOperationException("You are not allowed to revoke this share");
+        }
+
+        share.setStatus(ShareStatus.REVOKED.name());
+        Share saved = shareRepository.save(share);
+
+        return toResponse(saved);
     }
 
     private ShareResponse toResponse(Share share) {
