@@ -61,6 +61,82 @@ public class FolderService {
         return new FolderChildrenResponse(folders, files);
     }
 
+    public FolderResponse renameFolder(UUID folderId, RenameFolderRequest request, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (!permissionService.canWriteFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to rename this folder");
+        }
+
+        folder.setName(request.name());
+        folder.setUpdatedAt(Instant.now());
+
+        Folder saved = folderRepository.save(folder);
+        return toFolderResponse(saved);
+    }
+
+    public FolderResponse moveFolder(UUID folderId, MoveFolderRequest moveFolderRequest, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        Folder targetParent = folderRepository.findById(moveFolderRequest.targetParentFolderId())
+              .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
+
+        if (!permissionService.canWriteFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to move this folder");
+        }
+
+        if(!permissionService.canWriteFolder(targetParent.getId(), userId)) {
+            throw new ForbiddenOperationException("You are not allowed to move the folder to this location");
+        }
+
+        if(folder.getId().equals(targetParent.getId())) {
+            throw new IllegalArgumentException("Folder cannot be moved to itself");
+        }
+
+        validateNoCycle(folder.getId(), targetParent.getId());
+
+        folder.setParentFolderId(targetParent.getId());
+        folder.setUpdatedAt(Instant.now());
+
+        Folder saved = folderRepository.save(folder);
+
+        return toFolderResponse(saved);
+    }
+
+    private void validateNoCycle(UUID folderId, UUID parentFolderId) {
+        UUID curId = parentFolderId;
+        while(curId !=  null) {
+            if(folderId.equals(curId)) {
+                throw new IllegalArgumentException("You are not allowed to move it to your descendents");
+            }
+
+            Folder folder = folderRepository.findById(curId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+            curId = folder.getParentFolderId();
+        }
+    }
+
+    public void deleteFolder(UUID folderId, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (!permissionService.canWriteFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to delete this folder");
+        }
+
+        boolean hasChildFolders = !folderRepository.findByParentFolderId(folderId).isEmpty();
+        boolean hasFiles = !fileRecordRepository.findByFolderId(folderId).isEmpty();
+
+        if (hasChildFolders || hasFiles) {
+            throw new IllegalArgumentException("Folder is not empty");
+        }
+
+        folderRepository.delete(folder);
+    }
+
     private FolderResponse toFolderResponse(Folder folder) {
         return new FolderResponse(
                 folder.getId(),

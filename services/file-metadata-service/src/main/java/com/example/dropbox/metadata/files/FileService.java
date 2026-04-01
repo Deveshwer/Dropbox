@@ -50,6 +50,54 @@ public class FileService {
         return toResponse(file);
     }
 
+    public FileResponse renameFile(UUID fileId, RenameFileRequest request, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (!permissionService.canWriteFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to rename this file");
+        }
+
+        file.setName(request.name());
+        file.setUpdatedAt(Instant.now());
+
+        FileRecord saved = fileRecordRepository.save(file);
+        return toResponse(saved);
+    }
+
+    public FileResponse moveFile(UUID fileId, MoveFileRequest request, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        Folder targetFolder = folderRepository.findById(request.targetFolderId())
+                .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
+
+        if (!permissionService.canWriteFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to move this file");
+        }
+
+        if (!permissionService.canWriteFolder(targetFolder.getId(), userId)) {
+            throw new ForbiddenOperationException("User not allowed to move file into target folder");
+        }
+
+        file.setFolderId(targetFolder.getId());
+        file.setUpdatedAt(Instant.now());
+
+        FileRecord saved = fileRecordRepository.save(file);
+        return toResponse(saved);
+    }
+
+    public void deleteFile(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (!permissionService.canWriteFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to delete this file");
+        }
+
+        fileRecordRepository.delete(file);
+    }
+
     private FileResponse toResponse(FileRecord file) {
         return new FileResponse(
                 file.getId(),

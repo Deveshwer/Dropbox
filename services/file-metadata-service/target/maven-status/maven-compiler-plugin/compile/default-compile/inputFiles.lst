@@ -19,6 +19,8 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileResponse.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileSummary.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/MoveFileRequest.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/RenameFileRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/CreateFolderRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/Folder.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderChildrenResponse.java
@@ -26,6 +28,8 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderRepository.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderResponse.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderService.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/MoveFolderRequest.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/RenameFolderRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/CreateShareRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/PermissionService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/Share.java

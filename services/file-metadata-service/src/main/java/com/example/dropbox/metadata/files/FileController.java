@@ -23,4 +23,30 @@ public class FileController {
     public FileResponse getFile(@PathVariable UUID fileId, @AuthenticationPrincipal User user) {
         return fileService.getFile(fileId, user.getId());
     }
+
+    @PatchMapping("/{fileId}/rename")
+    public FileResponse renameFile(
+            @PathVariable UUID fileId,
+            @Valid @RequestBody RenameFileRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.renameFile(fileId, request, user.getId());
+    }
+
+    @PatchMapping("/{fileId}/move")
+    public FileResponse moveFile(
+            @PathVariable UUID fileId,
+            @Valid @RequestBody MoveFileRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.moveFile(fileId, request, user.getId());
+    }
+
+    @DeleteMapping("/{fileId}")
+    public void deleteFile(
+            @PathVariable UUID fileId,
+            @AuthenticationPrincipal User user
+    ) {
+        fileService.deleteFile(fileId, user.getId());
+    }
 }

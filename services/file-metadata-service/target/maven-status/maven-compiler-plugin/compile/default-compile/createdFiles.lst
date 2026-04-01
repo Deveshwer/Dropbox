@@ -5,7 +5,9 @@ com/example/dropbox/metadata/files/FileService.class
 com/example/dropbox/metadata/auth/AuthResponse.class
 com/example/dropbox/metadata/common/ResourceType.class
 com/example/dropbox/metadata/folders/Folder.class
+com/example/dropbox/metadata/folders/RenameFolderRequest.class
 com/example/dropbox/metadata/shares/ShareController.class
+com/example/dropbox/metadata/files/RenameFileRequest.class
 com/example/dropbox/metadata/folders/FolderChildrenResponse.class
 com/example/dropbox/metadata/auth/SecurityConfig.class
 com/example/dropbox/metadata/users/User.class
@@ -18,6 +20,7 @@ com/example/dropbox/metadata/auth/JwtService.class
 com/example/dropbox/metadata/auth/AuthService.class
 com/example/dropbox/metadata/versions/FileVersionRepository.class
 com/example/dropbox/metadata/versions/FileVersionResponse.class
+com/example/dropbox/metadata/files/MoveFileRequest.class
 com/example/dropbox/metadata/files/FileRecordRepository.class
 com/example/dropbox/metadata/shares/PermissionService.class
 com/example/dropbox/metadata/versions/FileVersionController.class
@@ -34,6 +37,7 @@ com/example/dropbox/metadata/shares/Share.class
 com/example/dropbox/metadata/shares/ShareService.class
 com/example/dropbox/metadata/shares/ShareRepository.class
 com/example/dropbox/metadata/folders/FolderResponse.class
+com/example/dropbox/metadata/folders/MoveFolderRequest.class
 com/example/dropbox/metadata/folders/FolderController.class
 com/example/dropbox/metadata/files/FileSummary.class
 com/example/dropbox/metadata/shares/CreateShareRequest.class
