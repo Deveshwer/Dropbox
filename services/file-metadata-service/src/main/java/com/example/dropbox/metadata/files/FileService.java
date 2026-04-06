@@ -1,13 +1,17 @@
 package com.example.dropbox.metadata.files;
 
+import com.example.dropbox.metadata.common.ResourceType;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.ResourceNotFoundException;
 import com.example.dropbox.metadata.folders.Folder;
 import com.example.dropbox.metadata.folders.FolderRepository;
+import com.example.dropbox.metadata.shares.ShareRepository;
+import com.example.dropbox.metadata.versions.FileVersionRepository;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.example.dropbox.metadata.shares.PermissionService;
 
 @Service
@@ -17,6 +21,8 @@ public class FileService {
     private final FileRecordRepository fileRecordRepository;
     private final FolderRepository folderRepository;
     private final PermissionService permissionService;
+    private final FileVersionRepository fileVersionRepository;
+    private final ShareRepository shareRepository;
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
         Folder folder = folderRepository.findById(request.folderId())
@@ -54,7 +60,7 @@ public class FileService {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
-        if (!permissionService.canWriteFile(fileId, userId)) {
+        if (!file.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("User not allowed to rename this file");
         }
 
@@ -72,7 +78,7 @@ public class FileService {
         Folder targetFolder = folderRepository.findById(request.targetFolderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
 
-        if (!permissionService.canWriteFile(fileId, userId)) {
+        if (!file.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("User not allowed to move this file");
         }
 
@@ -87,14 +93,21 @@ public class FileService {
         return toResponse(saved);
     }
 
+    @Transactional
     public void deleteFile(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
-        if (!permissionService.canWriteFile(fileId, userId)) {
+        if (!file.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("User not allowed to delete this file");
         }
 
+        boolean hasVersions = !fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId).isEmpty();
+        if (hasVersions) {
+            throw new IllegalArgumentException("File cannot be deleted because versions exist");
+        }
+
+        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
         fileRecordRepository.delete(file);
     }
 

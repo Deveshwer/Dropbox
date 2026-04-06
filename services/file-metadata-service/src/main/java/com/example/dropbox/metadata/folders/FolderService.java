@@ -1,15 +1,18 @@
 package com.example.dropbox.metadata.folders;
 
+import com.example.dropbox.metadata.common.ResourceType;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.ResourceNotFoundException;
 import com.example.dropbox.metadata.files.FileRecord;
 import com.example.dropbox.metadata.files.FileRecordRepository;
 import com.example.dropbox.metadata.files.FileSummary;
+import com.example.dropbox.metadata.shares.ShareRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.example.dropbox.metadata.shares.PermissionService;
 
 
@@ -19,6 +22,7 @@ public class FolderService {
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
     private final PermissionService permissionService;
+    private final ShareRepository shareRepository;
 
     public FolderResponse create(CreateFolderRequest request, UUID ownerId) {
         Folder parentFolder = null;
@@ -65,7 +69,7 @@ public class FolderService {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!permissionService.canWriteFolder(folderId, userId)) {
+        if (!folder.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to rename this folder");
         }
 
@@ -83,7 +87,7 @@ public class FolderService {
         Folder targetParent = folderRepository.findById(moveFolderRequest.targetParentFolderId())
               .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
 
-        if (!permissionService.canWriteFolder(folderId, userId)) {
+        if (!folder.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to move this folder");
         }
 
@@ -119,11 +123,12 @@ public class FolderService {
         }
     }
 
+    @Transactional
     public void deleteFolder(UUID folderId, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!permissionService.canWriteFolder(folderId, userId)) {
+        if (!folder.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to delete this folder");
         }
 
@@ -134,6 +139,7 @@ public class FolderService {
             throw new IllegalArgumentException("Folder is not empty");
         }
 
+        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
         folderRepository.delete(folder);
     }
 
