@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 
 @Service
 @RequiredArgsConstructor
@@ -20,25 +21,35 @@ public class PermissionService {
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
 
+    private static final NO_PERMISSION = "NONE";
+
     public boolean canReadFolder(UUID folderId, UUID userId) {
-        return resolveFolderPermission(folderId, userId) != null;
+        return !NO_PERMISSION.equals(getResolvedFolderPermission(folderId, userId));
     }
 
     public boolean canWriteFolder(UUID folderId, UUID userId) {
-        String permission = resolveFolderPermission(folderId, userId);
-        return SharePermission.EDITOR.name().equals(permission);
+        return SharePermission.EDITOR.name().equals(getResolvedFolderPermission(folderId, userId));
     }
 
     public boolean canReadFile(UUID fileId, UUID userId) {
-        return resolveFilePermission(fileId, userId) != null;
+        return !NO_PERMISSION.equals(getResolvedFilePermission(fileId, userId));
     }
 
     public boolean canWriteFile(UUID fileId, UUID userId) {
-        String permission = resolveFilePermission(fileId, userId);
-        return SharePermission.EDITOR.name().equals(permission);
+        return SharePermission.EDITOR.name().equals(getResolvedFilePermission(fileId, userId));
     }
 
-    private String resolveFolderPermission(UUID folderId, UUID userId) {
+    @Cacheable(value = "folderPermissions", key = "#folderId.toString() + ':' + #userId.toString()")
+    public String getResolvedFolderPermission(UUID folderId, UUID userId) {
+        return computeFolderPermission(folderId, userId);
+    }
+
+    @Cacheable(value = "filePermissions", key = "#fileId.toString() + ':' + #userId.toString()")
+    public String getResolvedFilePermission(UUID fileId, UUID userId) {
+        return computeFilePermission(fileId, userId);
+    }
+
+    private String computeFolderPermission(UUID folderId, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
@@ -81,10 +92,10 @@ public class PermissionService {
             currentParentId = parentFolder.getParentFolderId();
         }
 
-        return null;
+        return NO_PERMISSION;
     }
 
-    private String resolveFilePermission(UUID fileId, UUID userId) {
+    private String computeFilePermission(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
@@ -103,7 +114,7 @@ public class PermissionService {
             return directShare.get().getPermission();
         }
 
-        return resolveFolderPermission(file.getFolderId(), userId);
+        return getResolvedFolderPermission(file.getFolderId(), userId);
     }
 
     private boolean isActiveAndNotExpired(Share share) {

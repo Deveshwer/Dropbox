@@ -32,3 +32,9 @@ app:
   jwt:
     secret: mysupersecurejwtsecretkey12345678
     expiration: 3600000
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
