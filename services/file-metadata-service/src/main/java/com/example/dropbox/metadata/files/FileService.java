@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.dropbox.metadata.shares.PermissionService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 @Service
 @RequiredArgsConstructor
@@ -71,6 +73,10 @@ public class FileService {
         return toResponse(saved);
     }
 
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
     public FileResponse moveFile(UUID fileId, MoveFileRequest request, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
@@ -93,6 +99,10 @@ public class FileService {
         return toResponse(saved);
     }
 
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
     @Transactional
     public void deleteFile(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)

@@ -21,7 +21,7 @@ public class PermissionService {
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
 
-    private static final NO_PERMISSION = "NONE";
+    private static final String NO_PERMISSION = "NONE";
 
     public boolean canReadFolder(UUID folderId, UUID userId) {
         return !NO_PERMISSION.equals(getResolvedFolderPermission(folderId, userId));

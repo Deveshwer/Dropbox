@@ -14,6 +14,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,11 @@ public class ShareService {
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
 
+
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
     @Transactional // If anything fails in the function, rollback completely(function should be atomic)
     public ShareResponse createOrUpdateShare(CreateShareRequest request, UUID ownerId) {
         ResourceType resourceType = parseResourceType(request.resourceType());
@@ -115,6 +122,10 @@ public class ShareService {
             .toList();
     }
 
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
     @Transactional
     public ShareResponse revokeShare(UUID shareId, UUID ownerId) {
         Share share = shareRepository.findById(shareId)
