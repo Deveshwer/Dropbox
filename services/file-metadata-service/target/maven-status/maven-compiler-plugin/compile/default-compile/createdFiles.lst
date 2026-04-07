@@ -13,6 +13,7 @@ com/example/dropbox/metadata/auth/SecurityConfig.class
 com/example/dropbox/metadata/users/User.class
 com/example/dropbox/metadata/versions/FileVersion.class
 com/example/dropbox/metadata/common/ResourceNotFoundException.class
+com/example/dropbox/metadata/shares/CachedPermissionResolver.class
 com/example/dropbox/metadata/files/FileController.class
 com/example/dropbox/metadata/users/UserRepository.class
 com/example/dropbox/metadata/files/CreateFileRequest.class
@@ -20,6 +21,7 @@ com/example/dropbox/metadata/auth/JwtService.class
 com/example/dropbox/metadata/auth/AuthService.class
 com/example/dropbox/metadata/versions/FileVersionRepository.class
 com/example/dropbox/metadata/versions/FileVersionResponse.class
+com/example/dropbox/metadata/common/CacheConfig.class
 com/example/dropbox/metadata/files/MoveFileRequest.class
 com/example/dropbox/metadata/files/FileRecordRepository.class
 com/example/dropbox/metadata/shares/PermissionService.class
@@ -31,6 +33,7 @@ com/example/dropbox/metadata/common/ForbiddenOperationException.class
 com/example/dropbox/metadata/auth/LoginRequest.class
 com/example/dropbox/metadata/MetadataServiceApplication.class
 com/example/dropbox/metadata/common/GlobalExceptionHandler.class
+com/example/dropbox/metadata/shares/PermissionComputationService.class
 com/example/dropbox/metadata/auth/SignupRequest.class
 com/example/dropbox/metadata/auth/AuthController.class
 com/example/dropbox/metadata/shares/Share.class

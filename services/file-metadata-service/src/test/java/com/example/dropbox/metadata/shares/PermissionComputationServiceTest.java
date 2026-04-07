@@ -1,7 +1,7 @@
 package com.example.dropbox.metadata.shares;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.example.dropbox.metadata.files.FileRecord;
@@ -18,7 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class PermissionServiceTest {
+class PermissionComputationServiceTest {
 
     @Mock
     private ShareRepository shareRepository;
@@ -29,11 +29,14 @@ class PermissionServiceTest {
     @Mock
     private FileRecordRepository fileRecordRepository;
 
+    @Mock
+    private CachedPermissionResolver cachedPermissionResolver;
+
     @InjectMocks
-    private PermissionService permissionService;
+    private PermissionComputationService permissionComputationService;
 
     @Test
-    void canWriteFolderUsesNearestSharedAncestor() {
+    void computeFolderPermissionUsesNearestSharedAncestor() {
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID rootId = UUID.randomUUID();
@@ -42,17 +45,16 @@ class PermissionServiceTest {
 
         when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder(folderId, ownerId, parentId)));
         when(folderRepository.findById(parentId)).thenReturn(Optional.of(folder(parentId, ownerId, rootId)));
-
         when(shareRepository.findByResourceTypeAndResourceIdAndSharedWithUserId("FOLDER", folderId, userId))
                 .thenReturn(Optional.empty());
         when(shareRepository.findByResourceTypeAndResourceIdAndSharedWithUserId("FOLDER", parentId, userId))
                 .thenReturn(Optional.of(share("EDITOR", ShareStatus.ACTIVE.name(), null)));
 
-        assertTrue(permissionService.canWriteFolder(folderId, userId));
+        assertEquals("EDITOR", permissionComputationService.computeFolderPermission(folderId, userId));
     }
 
     @Test
-    void directFileViewerShareOverridesInheritedFolderEditorShare() {
+    void computeFilePermissionDirectViewerShareOverridesInheritedFolderEditorShare() {
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID folderId = UUID.randomUUID();
@@ -67,12 +69,11 @@ class PermissionServiceTest {
         when(shareRepository.findByResourceTypeAndResourceIdAndSharedWithUserId("FILE", fileId, userId))
                 .thenReturn(Optional.of(share("VIEWER", ShareStatus.ACTIVE.name(), null)));
 
-        assertTrue(permissionService.canReadFile(fileId, userId));
-        assertFalse(permissionService.canWriteFile(fileId, userId));
+        assertEquals("VIEWER", permissionComputationService.computeFilePermission(fileId, userId));
     }
 
     @Test
-    void expiredDirectShareDoesNotGrantAccess() {
+    void computeFolderPermissionExpiredDirectShareDoesNotGrantAccess() {
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID folderId = UUID.randomUUID();
@@ -81,8 +82,18 @@ class PermissionServiceTest {
         when(shareRepository.findByResourceTypeAndResourceIdAndSharedWithUserId("FOLDER", folderId, userId))
                 .thenReturn(Optional.of(share("EDITOR", ShareStatus.ACTIVE.name(), Instant.now().minusSeconds(60))));
 
+        assertEquals("NONE", permissionComputationService.computeFolderPermission(folderId, userId));
+    }
+
+    @Test
+    void permissionServiceUsesCachedResolverResult() {
+        UUID folderId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        PermissionService permissionService = new PermissionService(cachedPermissionResolver);
+
+        when(cachedPermissionResolver.getResolvedFolderPermission(folderId, userId)).thenReturn("NONE");
+
         assertFalse(permissionService.canReadFolder(folderId, userId));
-        assertFalse(permissionService.canWriteFolder(folderId, userId));
     }
 
     private Folder folder(UUID id, UUID ownerId, UUID parentFolderId) {
