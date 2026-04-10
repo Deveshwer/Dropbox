@@ -117,8 +117,12 @@ public class FileService {
             throw new IllegalArgumentException("File cannot be deleted because versions exist");
         }
 
-        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
-        fileRecordRepository.delete(file);
+        // shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
+        // fileRecordRepository.delete(file);
+
+        file.setDeletedAt(Instant.now());
+        file.setUpdatedAt(Instant.now());
+        fileRecordRepository.save(file);
     }
 
     private FileResponse toResponse(FileRecord file) {

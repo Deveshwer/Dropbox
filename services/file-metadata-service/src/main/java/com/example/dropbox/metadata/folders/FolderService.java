@@ -150,8 +150,12 @@ public class FolderService {
             throw new IllegalArgumentException("Folder is not empty");
         }
 
-        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
-        folderRepository.delete(folder);
+        // shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
+        // folderRepository.delete(folder);
+
+        folder.setDeletedAt(Instant.now());
+        folder.setUpdatedAt(Instant.now());
+        folderRepository.save(folder);
     }
 
     private FolderResponse toFolderResponse(Folder folder) {

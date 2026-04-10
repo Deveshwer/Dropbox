@@ -26,6 +26,10 @@ public class PermissionComputationService {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
+        if (folder.getDeletedAt() != null) {
+            return NO_PERMISSION;
+        }
+
         if (folder.getOwnerId().equals(userId)) {
             return SharePermission.EDITOR.name();
         }
@@ -45,6 +49,10 @@ public class PermissionComputationService {
         while (currentParentId != null) {
             Folder parentFolder = folderRepository.findById(currentParentId)
                     .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+            if (parentFolder.getDeletedAt() != null) {
+                return NO_PERMISSION;
+            }
 
             if (parentFolder.getOwnerId().equals(userId)) {
                 return SharePermission.EDITOR.name();
@@ -69,6 +77,10 @@ public class PermissionComputationService {
     public String computeFilePermission(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            return NO_PERMISSION;
+        }
 
         if (file.getOwnerId().equals(userId)) {
             return SharePermission.EDITOR.name();
