@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.example.dropbox.metadata.users.User;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/folders")
@@ -56,6 +57,19 @@ public class FolderController {
             @AuthenticationPrincipal User user
     ) {
         folderService.deleteFolder(folderId, user.getId());
+    }
+
+    @PatchMapping("/{folderId}/restore")
+    public FolderResponse restoreFolder(
+            @PathVariable UUID folderId,
+            @AuthenticationPrincipal User user
+    ) {
+        return folderService.restoreFolder(folderId, user.getId());
+    }
+
+    @GetMapping("/trash")
+    public List<FolderResponse> listDeletedFolders(@AuthenticationPrincipal User user) {
+      return folderService.listDeletedFolders(user.getId());
     }
 
 }

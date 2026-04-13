@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface FileRecordRepository extends JpaRepository<FileRecord, UUID> {
     List<FileRecord> findByFolderId(UUID folderId);
     List<FileRecord> findByOwnerId(UUID ownerId);
+    List<FileRecord> findByOwnerIdAndDeletedAtIsNotNull(UUID ownerId);
 }

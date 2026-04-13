@@ -172,6 +172,36 @@ public class FolderService {
         folderRepository.save(folder);
     }
 
+    @Caching(evict = {
+    @CacheEvict(value = "folderPermissions", allEntries = true),
+    @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    public FolderResponse restoreFolder(UUID folderId, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (!folder.getOwnerId().equals(userId)) {
+            throw new ForbiddenOperationException("You are not allowed to restore this folder");
+        }
+
+        if (folder.getDeletedAt() == null) {
+            throw new IllegalArgumentException("Folder is not deleted");
+        }
+
+        folder.setDeletedAt(null);
+        folder.setUpdatedAt(Instant.now());
+
+        Folder saved = folderRepository.save(folder);
+        return toFolderResponse(saved);
+    }
+
+    public List<FolderResponse> listDeletedFolders(UUID userId) {
+      return folderRepository.findByOwnerIdAndDeletedAtIsNotNull(userId)
+              .stream()
+              .map(this::toFolderResponse)
+              .toList();
+    }
+
     private FolderResponse toFolderResponse(Folder folder) {
         return new FolderResponse(
                 folder.getId(),

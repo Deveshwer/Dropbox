@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
+import java.util.List;
 import com.example.dropbox.metadata.users.User;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
@@ -48,5 +49,18 @@ public class FileController {
             @AuthenticationPrincipal User user
     ) {
         fileService.deleteFile(fileId, user.getId());
+    }
+
+    @PatchMapping("/{fileId}/restore")
+    public FileResponse restoreFile(
+            @PathVariable UUID fileId,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.restoreFile(fileId, user.getId());
+    }
+
+    @GetMapping("/trash")
+    public List<FileResponse> listDeletedFiles(@AuthenticationPrincipal User user) {
+        return fileService.listDeletedFiles(user.getId());
     }
 }

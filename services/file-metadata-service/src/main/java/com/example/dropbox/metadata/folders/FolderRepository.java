@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface FolderRepository extends JpaRepository<Folder, UUID> {
     List<Folder> findByParentFolderId(UUID parentFolderId);
     List<Folder> findByOwnerId(UUID ownerId);
+    List<Folder> findByOwnerIdAndDeletedAtIsNotNull(UUID ownerId);
 }

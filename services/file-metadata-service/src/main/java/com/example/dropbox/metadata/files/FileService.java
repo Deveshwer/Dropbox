@@ -9,6 +9,7 @@ import com.example.dropbox.metadata.shares.ShareRepository;
 import com.example.dropbox.metadata.versions.FileVersionRepository;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +82,13 @@ public class FileService {
         return toResponse(saved);
     }
 
+    public List<FileResponse> listDeletedFiles(UUID userId) {
+      return fileRecordRepository.findByOwnerIdAndDeletedAtIsNotNull(userId)
+              .stream()
+              .map(this::toResponse)
+              .toList();
+    }
+
     @Caching(evict = {
       @CacheEvict(value = "folderPermissions", allEntries = true),
       @CacheEvict(value = "filePermissions", allEntries = true)
@@ -139,6 +147,29 @@ public class FileService {
         file.setDeletedAt(Instant.now());
         file.setUpdatedAt(Instant.now());
         fileRecordRepository.save(file);
+    }
+
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    public FileResponse restoreFile(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (!file.getOwnerId().equals(userId)) {
+            throw new ForbiddenOperationException("User not allowed to restore this file");
+        }
+
+        if (file.getDeletedAt() == null) {
+            throw new IllegalArgumentException("File is not deleted");
+        }
+
+        file.setDeletedAt(null);
+        file.setUpdatedAt(Instant.now());
+
+        FileRecord saved = fileRecordRepository.save(file);
+        return toResponse(saved);
     }
 
     private FileResponse toResponse(FileRecord file) {
