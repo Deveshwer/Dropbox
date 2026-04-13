@@ -57,11 +57,13 @@ public class FolderService {
         }
         List<FolderResponse> folders = folderRepository.findByParentFolderId(folderId)
                                         .stream()
+                                        .filter(child  -> child.getDeletedAt() == null)
                                         .map(this::toFolderResponse)
                                         .toList();
 
         List<FileSummary> files = fileRecordRepository.findByFolderId(folderId)
                                         .stream()
+                                        .filter(child -> child.getDeletedAt() == null)
                                         .map(this::toFileSummary)
                                         .toList();
         return new FolderChildrenResponse(folders, files);
@@ -70,6 +72,10 @@ public class FolderService {
     public FolderResponse renameFolder(UUID folderId, RenameFolderRequest request, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
 
         if (!folder.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to rename this folder");
@@ -89,6 +95,10 @@ public class FolderService {
     public FolderResponse moveFolder(UUID folderId, MoveFolderRequest moveFolderRequest, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
 
         Folder targetParent = folderRepository.findById(moveFolderRequest.targetParentFolderId())
               .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
@@ -139,6 +149,10 @@ public class FolderService {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
+
         if (!folder.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to delete this folder");
         }
@@ -172,6 +186,10 @@ public class FolderService {
     public FolderResponse getFolder(UUID folderId, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
 
         if (!permissionService.canReadFolder(folderId, userId)) {
             throw new ForbiddenOperationException("You are not allowed to access this folder");

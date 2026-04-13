@@ -51,6 +51,10 @@ public class FileService {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
 
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
+
         if (!permissionService.canReadFile(fileId, userId)) {
             throw new ForbiddenOperationException("User not allowed to access this file");
         }
@@ -61,6 +65,10 @@ public class FileService {
     public FileResponse renameFile(UUID fileId, RenameFileRequest request, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
 
         if (!file.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("User not allowed to rename this file");
@@ -80,6 +88,10 @@ public class FileService {
     public FileResponse moveFile(UUID fileId, MoveFileRequest request, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
 
         Folder targetFolder = folderRepository.findById(request.targetFolderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Target folder not found"));
@@ -107,6 +119,10 @@ public class FileService {
     public void deleteFile(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
 
         if (!file.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("User not allowed to delete this file");
