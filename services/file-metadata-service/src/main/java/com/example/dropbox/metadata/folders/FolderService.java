@@ -202,6 +202,40 @@ public class FolderService {
               .toList();
     }
 
+    @Caching(evict = {
+    @CacheEvict(value = "folderPermissions", allEntries = true),
+    @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    @Transactional
+    public void permanentlyDeleteFolder(UUID folderId, UUID userId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (!folder.getOwnerId().equals(userId)) {
+            throw new ForbiddenOperationException("You are not allowed to permanently delete this folder");
+        }
+
+        if (folder.getDeletedAt() == null) {
+            throw new IllegalArgumentException("Folder is not deleted");
+        }
+
+        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
+        folderRepository.delete(folder);
+    }
+
+    @Caching(evict = {
+    @CacheEvict(value = "folderPermissions", allEntries = true),
+    @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    @Transactional
+    public void emptyTrash(UUID userId) {
+        List<Folder> deletedFolders = folderRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
+        for (Folder folder : deletedFolders) {
+            shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folder.getId());
+        }
+        folderRepository.deleteAll(deletedFolders);
+    }
+
     private FolderResponse toFolderResponse(Folder folder) {
         return new FolderResponse(
                 folder.getId(),

@@ -63,4 +63,17 @@ public class FileController {
     public List<FileResponse> listDeletedFiles(@AuthenticationPrincipal User user) {
         return fileService.listDeletedFiles(user.getId());
     }
+
+    @DeleteMapping("/{fileId}/permanent")
+    public void permanentlyDeleteFile(
+            @PathVariable UUID fileId,
+            @AuthenticationPrincipal User user
+    ) {
+        fileService.permanentlyDeleteFile(fileId, user.getId());
+    }
+
+    @DeleteMapping("/trash")
+    public void emptyTrash(@AuthenticationPrincipal User user) {
+        fileService.emptyTrash(user.getId());
+    }
 }

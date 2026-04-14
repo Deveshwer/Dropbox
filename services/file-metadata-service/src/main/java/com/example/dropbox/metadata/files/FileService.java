@@ -172,6 +172,40 @@ public class FileService {
         return toResponse(saved);
     }
 
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    @Transactional
+    public void permanentlyDeleteFile(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (!file.getOwnerId().equals(userId)) {
+            throw new ForbiddenOperationException("User not allowed to permanently delete this file");
+        }
+
+        if (file.getDeletedAt() == null) {
+            throw new IllegalArgumentException("File is not deleted");
+        }
+
+        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
+        fileRecordRepository.delete(file);
+    }
+
+    @Caching(evict = {
+      @CacheEvict(value = "folderPermissions", allEntries = true),
+      @CacheEvict(value = "filePermissions", allEntries = true)
+    })
+    @Transactional
+    public void emptyTrash(UUID userId) {
+        List<FileRecord> deletedFiles = fileRecordRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
+        for (FileRecord file : deletedFiles) {
+            shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), file.getId());
+            fileRecordRepository.delete(file);
+        }
+    }
+
     private FileResponse toResponse(FileRecord file) {
         return new FileResponse(
                 file.getId(),

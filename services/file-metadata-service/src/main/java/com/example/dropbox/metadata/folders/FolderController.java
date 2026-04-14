@@ -72,4 +72,17 @@ public class FolderController {
       return folderService.listDeletedFolders(user.getId());
     }
 
+    @DeleteMapping("/{folderId}/permanent")
+    public void permanentlyDeleteFolder(
+            @PathVariable UUID folderId,
+            @AuthenticationPrincipal User user
+    ) {
+        folderService.permanentlyDeleteFolder(folderId, user.getId());
+    }
+
+    @DeleteMapping("/trash")
+    public void emptyTrash(@AuthenticationPrincipal User user) {
+        folderService.emptyTrash(user.getId());
+    }
+
 }
