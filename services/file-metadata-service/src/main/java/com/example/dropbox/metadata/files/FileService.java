@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import com.example.dropbox.metadata.common.AuditEventService;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class FileService {
     private final PermissionService permissionService;
     private final FileVersionRepository fileVersionRepository;
     private final ShareRepository shareRepository;
+    private final AuditEventService auditEventService;
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
         Folder folder = folderRepository.findById(request.folderId())
@@ -45,6 +47,13 @@ public class FileService {
         file.setUpdatedAt(Instant.now());
 
         FileRecord saved = fileRecordRepository.save(file);
+        auditEventService.recordEvent(
+            "FILE_CREATED",
+            "FILE",
+            saved.getId(),
+            ownerId,
+            "name=" + saved.getName()
+        );
         return toResponse(saved);
     }
 

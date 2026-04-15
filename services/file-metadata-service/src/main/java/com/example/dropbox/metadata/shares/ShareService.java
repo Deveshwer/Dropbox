@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import com.example.dropbox.metadata.common.AuditEventService;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class ShareService {
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
     private final FileRecordRepository fileRecordRepository;
+    private final AuditEventService auditEventService;
 
 
     @Caching(evict = {
@@ -67,6 +69,16 @@ public class ShareService {
         share.setExpiresAt(request.expiresAt());
 
         Share saved = shareRepository.save(share);
+        auditEventService.recordEvent(
+            "SHARE_CREATED_OR_UPDATED",
+            "SHARE",
+            saved.getId(),
+            ownerId,
+            "resourceType=" + saved.getResourceType()
+                    + ",resourceId=" + saved.getResourceId()
+                    + ",sharedWithUserId=" + saved.getSharedWithUserId()
+                    + ",permission=" + saved.getPermission()
+        );
         return toResponse(saved);
     }
 
@@ -137,6 +149,16 @@ public class ShareService {
 
         share.setStatus(ShareStatus.REVOKED.name());
         Share saved = shareRepository.save(share);
+
+        auditEventService.recordEvent(
+            "SHARE_REVOKED",
+            "SHARE",
+            saved.getId(),
+            ownerId,
+            "resourceType=" + saved.getResourceType()
+                    + ",resourceId=" + saved.getResourceId()
+                    + ",sharedWithUserId=" + saved.getSharedWithUserId()
+        );
 
         return toResponse(saved);
     }
