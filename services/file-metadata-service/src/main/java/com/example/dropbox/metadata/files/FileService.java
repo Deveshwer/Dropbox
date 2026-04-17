@@ -156,6 +156,14 @@ public class FileService {
         file.setDeletedAt(Instant.now());
         file.setUpdatedAt(Instant.now());
         fileRecordRepository.save(file);
+
+        auditEventService.recordEvent(
+            "FILE_SOFT_DELETED",
+            ResourceType.FILE.name(),
+            file.getId(),
+            userId,
+            "name=" + file.getName()
+        );
     }
 
     @Caching(evict = {
@@ -178,6 +186,14 @@ public class FileService {
         file.setUpdatedAt(Instant.now());
 
         FileRecord saved = fileRecordRepository.save(file);
+
+        auditEventService.recordEvent(
+            "FILE_RESTORED",
+            ResourceType.FILE.name(),
+            saved.getId(),
+            userId,
+            "name=" + saved.getName()
+        );
         return toResponse(saved);
     }
 
@@ -200,6 +216,14 @@ public class FileService {
 
         shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
         fileRecordRepository.delete(file);
+
+        auditEventService.recordEvent(
+            "FILE_PERMANENTLY_DELETED",
+            ResourceType.FILE.name(),
+            file.getId(),
+            userId,
+            "name=" + file.getName()
+        );
     }
 
     @Caching(evict = {
@@ -212,6 +236,13 @@ public class FileService {
         for (FileRecord file : deletedFiles) {
             shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), file.getId());
             fileRecordRepository.delete(file);
+            auditEventService.recordEvent(
+                "FILE_PERMANENTLY_DELETED",
+                ResourceType.FILE.name(),
+                file.getId(),
+                userId,
+                "name=" + file.getName() + ",source=emptyTrash"
+        );
         }
     }
 

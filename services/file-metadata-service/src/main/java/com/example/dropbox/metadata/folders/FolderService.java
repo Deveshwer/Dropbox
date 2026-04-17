@@ -178,6 +178,14 @@ public class FolderService {
         folder.setDeletedAt(Instant.now());
         folder.setUpdatedAt(Instant.now());
         folderRepository.save(folder);
+
+        auditEventService.recordEvent(
+            "FOLDER_SOFT_DELETED",
+            ResourceType.FOLDER.name(),
+            folder.getId(),
+            userId,
+            "name=" + folder.getName()
+        );
     }
 
     @Caching(evict = {
@@ -200,6 +208,14 @@ public class FolderService {
         folder.setUpdatedAt(Instant.now());
 
         Folder saved = folderRepository.save(folder);
+
+        auditEventService.recordEvent(
+            "FOLDER_RESTORED",
+            ResourceType.FOLDER.name(),
+            saved.getId(),
+            userId,
+            "name=" + saved.getName()
+        );
         return toFolderResponse(saved);
     }
 
@@ -229,6 +245,14 @@ public class FolderService {
 
         shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
         folderRepository.delete(folder);
+
+        auditEventService.recordEvent(
+            "FOLDER_PERMANENTLY_DELETED",
+            ResourceType.FOLDER.name(),
+            folder.getId(),
+            userId,
+            "name=" + folder.getName()
+        );
     }
 
     @Caching(evict = {
@@ -240,8 +264,15 @@ public class FolderService {
         List<Folder> deletedFolders = folderRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
         for (Folder folder : deletedFolders) {
             shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folder.getId());
+            folderRepository.delete(folder);
+            auditEventService.recordEvent(
+                "FOLDER_PERMANENTLY_DELETED",
+                ResourceType.FOLDER.name(),
+                folder.getId(),
+                userId,
+                "name=" + folder.getName() + ",source=emptyTrash"
+            );
         }
-        folderRepository.deleteAll(deletedFolders);
     }
 
     private FolderResponse toFolderResponse(Folder folder) {
