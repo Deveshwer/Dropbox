@@ -12,6 +12,12 @@ spring:
     password:
     driver-class-name: org.postgresql.Driver
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -37,3 +43,7 @@ app:
   jwt:
     secret: mysupersecurejwtsecretkey12345678
     expiration: 3600000
+
+  kafka:
+    topics:
+      metadata-events: metadata.events

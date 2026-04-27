@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,14 +28,10 @@ class PermissionComputationServiceTest {
     @Mock
     private FileRecordRepository fileRecordRepository;
 
-    @Mock
-    private CachedPermissionResolver cachedPermissionResolver;
-
-    @InjectMocks
-    private PermissionComputationService permissionComputationService;
-
     @Test
     void computeFolderPermissionUsesNearestSharedAncestor() {
+        PermissionComputationService permissionComputationService =
+                new PermissionComputationService(shareRepository, folderRepository, fileRecordRepository);
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID rootId = UUID.randomUUID();
@@ -55,6 +50,8 @@ class PermissionComputationServiceTest {
 
     @Test
     void computeFilePermissionDirectViewerShareOverridesInheritedFolderEditorShare() {
+        PermissionComputationService permissionComputationService =
+                new PermissionComputationService(shareRepository, folderRepository, fileRecordRepository);
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID folderId = UUID.randomUUID();
@@ -74,6 +71,8 @@ class PermissionComputationServiceTest {
 
     @Test
     void computeFolderPermissionExpiredDirectShareDoesNotGrantAccess() {
+        PermissionComputationService permissionComputationService =
+                new PermissionComputationService(shareRepository, folderRepository, fileRecordRepository);
         UUID ownerId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID folderId = UUID.randomUUID();
@@ -89,9 +88,13 @@ class PermissionComputationServiceTest {
     void permissionServiceUsesCachedResolverResult() {
         UUID folderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        CachedPermissionResolver cachedPermissionResolver = new CachedPermissionResolver(null) {
+            @Override
+            public String getResolvedFolderPermission(UUID ignoredFolderId, UUID ignoredUserId) {
+                return "NONE";
+            }
+        };
         PermissionService permissionService = new PermissionService(cachedPermissionResolver);
-
-        when(cachedPermissionResolver.getResolvedFolderPermission(folderId, userId)).thenReturn("NONE");
 
         assertFalse(permissionService.canReadFolder(folderId, userId));
     }

@@ -2,12 +2,15 @@ package com.example.dropbox.metadata.files;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.dropbox.metadata.common.AuditEventService;
+import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
@@ -37,6 +40,9 @@ class FileServiceTest {
     @Mock
     private ShareRepository shareRepository;
 
+    @Mock
+    private AuditEventRepository auditEventRepository;
+
     @Test
     void deleteFileThrowsWhenVersionsExist() {
         FileService fileService = new FileService(
@@ -44,7 +50,8 @@ class FileServiceTest {
                 folderRepository,
                 null,
                 fileVersionRepository,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -73,7 +80,8 @@ class FileServiceTest {
                 folderRepository,
                 null,
                 fileVersionRepository,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -84,8 +92,9 @@ class FileServiceTest {
 
         assertDoesNotThrow(() -> fileService.deleteFile(fileId, ownerId));
 
-        verify(shareRepository).deleteByResourceTypeAndResourceId("FILE", fileId);
-        verify(fileRecordRepository).delete(file);
+        verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
+        verify(fileRecordRepository).save(file);
+        assertNotNull(file.getDeletedAt());
     }
 
     @Test
@@ -95,7 +104,8 @@ class FileServiceTest {
                 folderRepository,
                 null,
                 fileVersionRepository,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -109,6 +119,7 @@ class FileServiceTest {
         verify(fileVersionRepository, never()).findByFileIdOrderByVersionNumberAsc(any());
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
         verify(fileRecordRepository, never()).delete(any(FileRecord.class));
+        verify(fileRecordRepository, never()).save(any(FileRecord.class));
     }
 
     private FileRecord file(UUID fileId, UUID ownerId) {

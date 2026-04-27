@@ -15,6 +15,8 @@ public class AuditEventService {
 
     private final PermissionService permissionService;
 
+    private final MetadataEventPublisher metadataEventPublisher;
+
     public List<AuditEventResponse> listEventsForActor(UUID actorId) {
       return auditEventRepository.findByActorIdOrderByCreatedAtDesc(actorId)
               .stream()
@@ -39,6 +41,18 @@ public class AuditEventService {
         event.setCreatedAt(Instant.now());
 
         auditEventRepository.save(event);
+
+        if (metadataEventPublisher != null) {
+            metadataEventPublisher.publish(new MetadataEventMessage(
+                event.getId(),
+                event.getEventType(),
+                event.getResourceType(),
+                event.getResourceId(),
+                event.getActorId(),
+                event.getMetadata(),
+                event.getCreatedAt()
+            ));
+        }
     }
 
     public List<AuditEventResponse> listEventsForResource(String resourceType, UUID resourceId, UUID userId) {

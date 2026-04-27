@@ -2,12 +2,15 @@ package com.example.dropbox.metadata.folders;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.dropbox.metadata.common.AuditEventService;
+import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.files.FileRecordRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
@@ -32,13 +35,17 @@ class FolderServiceTest {
     @Mock
     private ShareRepository shareRepository;
 
+    @Mock
+    private AuditEventRepository auditEventRepository;
+
     @Test
     void deleteFolderDeletesShareRowsAndFolderWhenEmpty() {
         FolderService folderService = new FolderService(
                 folderRepository,
                 fileRecordRepository,
                 null,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -50,8 +57,9 @@ class FolderServiceTest {
 
         assertDoesNotThrow(() -> folderService.deleteFolder(folderId, ownerId));
 
-        verify(shareRepository).deleteByResourceTypeAndResourceId("FOLDER", folderId);
-        verify(folderRepository).delete(folder);
+        verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
+        verify(folderRepository).save(folder);
+        assertNotNull(folder.getDeletedAt());
     }
 
     @Test
@@ -60,7 +68,8 @@ class FolderServiceTest {
                 folderRepository,
                 fileRecordRepository,
                 null,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -78,6 +87,7 @@ class FolderServiceTest {
         assertEquals("Folder is not empty", ex.getMessage());
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
         verify(folderRepository, never()).delete(any(Folder.class));
+        verify(folderRepository, never()).save(any(Folder.class));
     }
 
     @Test
@@ -86,7 +96,8 @@ class FolderServiceTest {
                 folderRepository,
                 fileRecordRepository,
                 null,
-                shareRepository
+                shareRepository,
+                new AuditEventService(auditEventRepository, null, null)
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -100,6 +111,7 @@ class FolderServiceTest {
         verify(folderRepository, never()).findByParentFolderId(any());
         verify(fileRecordRepository, never()).findByFolderId(any());
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
+        verify(folderRepository, never()).save(any(Folder.class));
     }
 
     private Folder folder(UUID id, UUID ownerId, UUID parentFolderId) {
