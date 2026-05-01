@@ -2,6 +2,7 @@ package com.example.dropbox.metadata.common;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Map;
 
 public record MetadataEventMessage(
         UUID eventId,
@@ -9,7 +10,7 @@ public record MetadataEventMessage(
         String resourceType,
         UUID resourceId,
         UUID actorId,
-        String metadata,
+        Map<String, Object> metadata,
         Instant createdAt
 ) {
 }

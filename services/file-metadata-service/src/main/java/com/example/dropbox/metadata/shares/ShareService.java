@@ -74,8 +74,8 @@ public class ShareService {
             "SHARE",
             saved.getId(),
             ownerId,
-            "resourceType=" + saved.getResourceType()
-                    + ",resourceId=" + saved.getResourceId()
+            "targetResourceType=" + saved.getResourceType()
+                    + ",targetResourceId=" + saved.getResourceId()
                     + ",sharedWithUserId=" + saved.getSharedWithUserId()
                     + ",permission=" + saved.getPermission()
         );
@@ -155,8 +155,8 @@ public class ShareService {
             "SHARE",
             saved.getId(),
             ownerId,
-            "resourceType=" + saved.getResourceType()
-                    + ",resourceId=" + saved.getResourceId()
+            "targetResourceType=" + saved.getResourceType()
+                    + ",targetResourceId=" + saved.getResourceId()
                     + ",sharedWithUserId=" + saved.getSharedWithUserId()
         );
 

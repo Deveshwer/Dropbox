@@ -6,6 +6,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.dropbox.metadata.shares.PermissionService;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,25 @@ public class AuditEventService {
               .stream()
               .map(this::toResponse)
               .toList();
+    }
+
+    private Map<String, Object> parseMetadata(String metadata) {
+        Map<String, Object> parsed = new LinkedHashMap<>();
+
+        if (metadata == null || metadata.isBlank()) {
+            return parsed;
+        }
+
+        String[] entries = metadata.split(",");
+
+        for (String entry : entries) {
+            String[] parts = entry.split("=", 2);
+            if (parts.length == 2) {
+                parsed.put(parts[0].trim(), parts[1].trim());
+            }
+        }
+
+        return parsed;
     }
 
     public void recordEvent(
@@ -49,7 +70,7 @@ public class AuditEventService {
                 event.getResourceType(),
                 event.getResourceId(),
                 event.getActorId(),
-                event.getMetadata(),
+                parseMetadata(event.getMetadata()),
                 event.getCreatedAt()
             ));
         }
