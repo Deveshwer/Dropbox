@@ -37,6 +37,7 @@ com/example/dropbox/metadata/shares/ShareResponse.class
 com/example/dropbox/metadata/versions/CreateFileVersionRequest.class
 com/example/dropbox/metadata/folders/FolderRepository.class
 com/example/dropbox/metadata/common/ForbiddenOperationException.class
+com/example/dropbox/metadata/common/OutboxEvent.class
 com/example/dropbox/metadata/auth/LoginRequest.class
 com/example/dropbox/metadata/MetadataServiceApplication.class
 com/example/dropbox/metadata/common/GlobalExceptionHandler.class
@@ -50,6 +51,7 @@ com/example/dropbox/metadata/folders/FolderResponse.class
 com/example/dropbox/metadata/folders/MoveFolderRequest.class
 com/example/dropbox/metadata/folders/FolderController.class
 com/example/dropbox/metadata/files/FileSummary.class
+com/example/dropbox/metadata/common/OutboxEventRepository.class
 com/example/dropbox/metadata/shares/CreateShareRequest.class
 com/example/dropbox/metadata/auth/JwtAuthenticationFilter.class
 com/example/dropbox/metadata/versions/FileVersionService.class

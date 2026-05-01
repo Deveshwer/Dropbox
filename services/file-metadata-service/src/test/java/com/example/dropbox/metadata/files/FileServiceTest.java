@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
@@ -51,7 +52,7 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null)
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -81,7 +82,7 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null)
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -105,7 +106,7 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null)
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();

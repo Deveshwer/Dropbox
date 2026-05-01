@@ -6,6 +6,11 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.dropbox.metadata.shares.PermissionService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.transaction.Transactional;
+
 import java.util.Map;
 import java.util.LinkedHashMap;
 
@@ -17,7 +22,9 @@ public class AuditEventService {
 
     private final PermissionService permissionService;
 
-    private final MetadataEventPublisher metadataEventPublisher;
+    private final OutboxEventRepository outboxEventRepository;
+
+    private final ObjectMapper objectMapper;
 
     public List<AuditEventResponse> listEventsForActor(UUID actorId) {
       return auditEventRepository.findByActorIdOrderByCreatedAtDesc(actorId)
@@ -45,6 +52,7 @@ public class AuditEventService {
         return parsed;
     }
 
+    @Transactional
     public void recordEvent(
             String eventType,
             String resourceType,
@@ -63,17 +71,47 @@ public class AuditEventService {
 
         auditEventRepository.save(event);
 
-        if (metadataEventPublisher != null) {
-            metadataEventPublisher.publish(new MetadataEventMessage(
-                event.getId(),
-                event.getEventType(),
-                event.getResourceType(),
-                event.getResourceId(),
-                event.getActorId(),
-                parseMetadata(event.getMetadata()),
-                event.getCreatedAt()
-            ));
+        MetadataEventMessage eventMessage = new MetadataEventMessage(
+          event.getId(),
+          event.getEventType(),
+          event.getResourceType(),
+          event.getResourceId(),
+          event.getActorId(),
+          parseMetadata(event.getMetadata()),
+          event.getCreatedAt()
+        );
+
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(eventMessage);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize outbox event payload", ex);
         }
+
+        OutboxEvent outboxEvent = new OutboxEvent();
+        outboxEvent.setId(UUID.randomUUID());
+        outboxEvent.setEventType(event.getEventType());
+        outboxEvent.setResourceType(event.getResourceType());
+        outboxEvent.setResourceId(event.getResourceId());
+        outboxEvent.setActorId(event.getActorId());
+        outboxEvent.setPayload(payload);
+        outboxEvent.setCreatedAt(event.getCreatedAt());
+        outboxEvent.setPublishedAt(null);
+
+        outboxEventRepository.save(outboxEvent);
+
+
+        // if (metadataEventPublisher != null) {
+        //     metadataEventPublisher.publish(new MetadataEventMessage(
+        //         event.getId(),
+        //         event.getEventType(),
+        //         event.getResourceType(),
+        //         event.getResourceId(),
+        //         event.getActorId(),
+        //         parseMetadata(event.getMetadata()),
+        //         event.getCreatedAt()
+        //     ));
+        // }
     }
 
     public List<AuditEventResponse> listEventsForResource(String resourceType, UUID resourceId, UUID userId) {
