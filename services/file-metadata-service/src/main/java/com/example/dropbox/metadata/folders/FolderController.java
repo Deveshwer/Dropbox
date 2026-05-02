@@ -97,4 +97,17 @@ public class FolderController {
         return folderService.searchChildFolders(folderId, user.getId(), q, page, size);
     }
 
+    @GetMapping("/{folderId}/search/files")
+    public SearchResponse searchChildFiles(
+            @PathVariable UUID folderId,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User user
+    ) {
+        return folderService.searchChildFiles(folderId, user.getId(), q, page, size);
+    }
+
+
+
 }

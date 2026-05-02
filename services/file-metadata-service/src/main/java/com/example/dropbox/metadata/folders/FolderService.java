@@ -350,6 +350,64 @@ public class FolderService {
         );
     }
 
+    public SearchResponse searchChildFiles(UUID folderId, UUID userId, String q, int page, int size) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
+
+        if (!permissionService.canReadFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to access this folder");
+        }
+
+        if (page < 0) {
+            throw new IllegalArgumentException("Page must be greater than or equal to 0");
+        }
+
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Size must be between 1 and 100");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+
+        String normalizedQuery = q == null ? null : q.trim();
+
+        Page<FileRecord> resultPage;
+        if (normalizedQuery == null || normalizedQuery.isEmpty()) {
+            resultPage = fileRecordRepository.findByFolderIdAndDeletedAtIsNull(folderId, pageable);
+        } else {
+            resultPage = fileRecordRepository.findByFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+                    folderId,
+                    normalizedQuery,
+                    pageable
+            );
+        }
+
+        return new SearchResponse(
+                resultPage.getContent().stream().map(this::toSearchResultItem).toList(),
+                resultPage.getNumber(),
+                resultPage.getSize(),
+                resultPage.getTotalElements(),
+                resultPage.getTotalPages(),
+                resultPage.hasNext()
+        );
+    }
+
+    private SearchResultItem toSearchResultItem(FileRecord file) {
+        return new SearchResultItem(
+                file.getId(),
+                file.getName(),
+                ResourceType.FILE.name(),
+                file.getFolderId(),
+                file.getOwnerId(),
+                file.getCreatedAt(),
+                file.getUpdatedAt()
+        );
+    }
+
+
     private SearchResultItem toSearchResultItem(Folder folder) {
       return new SearchResultItem(
               folder.getId(),
