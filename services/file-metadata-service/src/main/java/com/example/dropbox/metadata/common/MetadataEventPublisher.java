@@ -2,6 +2,9 @@ package com.example.dropbox.metadata.common;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.ExecutionException;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -22,7 +25,7 @@ public class MetadataEventPublisher {
                     metadataEventsTopic,
                     event.resourceId().toString(),
                     event
-            );
+            ).get();
 
             log.info(
                     "Published metadata event: eventType={}, resourceType={}, resourceId={}",
@@ -30,7 +33,17 @@ public class MetadataEventPublisher {
                     event.resourceType(),
                     event.resourceId()
             );
-        } catch (Exception ex) {
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn(
+                    "Kafka publish interrupted: eventType={}, resourceType={}, resourceId={}",
+                    event.eventType(),
+                    event.resourceType(),
+                    event.resourceId(),
+                    ex
+            );
+            throw new IllegalStateException("Kafka publish interrupted", ex);
+        } catch (ExecutionException ex) {
             log.warn(
                     "Failed to publish metadata event: eventType={}, resourceType={}, resourceId={}",
                     event.eventType(),
@@ -38,6 +51,7 @@ public class MetadataEventPublisher {
                     event.resourceId(),
                     ex
             );
+            throw new IllegalStateException("Kafka publish failed", ex);
         }
     }
 }
