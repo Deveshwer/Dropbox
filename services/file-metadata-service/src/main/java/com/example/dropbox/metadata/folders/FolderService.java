@@ -17,6 +17,10 @@ import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import com.example.dropbox.metadata.common.AuditEventService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -299,6 +303,63 @@ public class FolderService {
         }
 
         return toFolderResponse(folder);
+    }
+
+    public SearchResponse searchChildFolders(UUID folderId, UUID userId, String q, int page, int size) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
+
+        if (!permissionService.canReadFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to access this folder");
+        }
+
+        if (page < 0) {
+            throw new IllegalArgumentException("Page must be greater than or equal to 0");
+        }
+
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Size must be between 1 and 100");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+
+        String normalizedQuery = q == null ? null : q.trim();
+
+        Page<Folder> resultPage;
+        if (normalizedQuery == null || normalizedQuery.isEmpty()) {
+            resultPage = folderRepository.findByParentFolderIdAndDeletedAtIsNull(folderId, pageable);
+        } else {
+            resultPage = folderRepository.findByParentFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+                    folderId,
+                    normalizedQuery,
+                    pageable
+            );
+        }
+
+        return new SearchResponse(
+                resultPage.getContent().stream().map(this::toSearchResultItem).toList(),
+                resultPage.getNumber(),
+                resultPage.getSize(),
+                resultPage.getTotalElements(),
+                resultPage.getTotalPages(),
+                resultPage.hasNext()
+        );
+    }
+
+    private SearchResultItem toSearchResultItem(Folder folder) {
+      return new SearchResultItem(
+              folder.getId(),
+              folder.getName(),
+              ResourceType.FOLDER.name(),
+              folder.getParentFolderId(),
+              folder.getOwnerId(),
+              folder.getCreatedAt(),
+              folder.getUpdatedAt()
+      );
     }
 
     private FileSummary toFileSummary(FileRecord file) {

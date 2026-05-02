@@ -42,6 +42,8 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/FolderService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/MoveFolderRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/RenameFolderRequest.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/SearchResponse.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/folders/SearchResultItem.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/CachedPermissionResolver.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/CreateShareRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/shares/PermissionComputationService.java

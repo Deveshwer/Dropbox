@@ -12,6 +12,7 @@ com/example/dropbox/metadata/folders/FolderChildrenResponse.class
 com/example/dropbox/metadata/auth/SecurityConfig.class
 com/example/dropbox/metadata/users/User.class
 com/example/dropbox/metadata/versions/FileVersion.class
+com/example/dropbox/metadata/folders/SearchResponse.class
 com/example/dropbox/metadata/common/OutboxPublisherService.class
 com/example/dropbox/metadata/common/AuditEvent.class
 com/example/dropbox/metadata/common/ResourceNotFoundException.class
@@ -42,6 +43,7 @@ com/example/dropbox/metadata/common/OutboxEvent.class
 com/example/dropbox/metadata/auth/LoginRequest.class
 com/example/dropbox/metadata/MetadataServiceApplication.class
 com/example/dropbox/metadata/common/GlobalExceptionHandler.class
+com/example/dropbox/metadata/folders/SearchResultItem.class
 com/example/dropbox/metadata/shares/PermissionComputationService.class
 com/example/dropbox/metadata/auth/SignupRequest.class
 com/example/dropbox/metadata/auth/AuthController.class
