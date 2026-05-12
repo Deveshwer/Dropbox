@@ -24,4 +24,6 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
             UUID parentFolderId,
             String name
     );
+
+    List<Folder> findByOwnerIdAndParentFolderIdIsNullAndDeletedAtIsNull(UUID ownerId);
 }

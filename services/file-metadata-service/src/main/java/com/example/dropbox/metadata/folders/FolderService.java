@@ -514,6 +514,16 @@ public class FolderService {
         );
     }
 
+    public FolderChildrenResponse getRootChildren(UUID userId) {
+        List<FolderResponse> folders = folderRepository
+                .findByOwnerIdAndParentFolderIdIsNullAndDeletedAtIsNull(userId)
+                .stream()
+                .map(this::toFolderResponse)
+                .toList();
+
+        return new FolderChildrenResponse(folders, List.of());
+    }
+
 
 }
 

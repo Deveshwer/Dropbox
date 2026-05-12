@@ -119,6 +119,11 @@ public class FolderController {
         return folderService.searchAllChildren(folderId, user.getId(), q, page, size);
     }
 
+    @GetMapping("/root/children")
+    public FolderChildrenResponse getRootChildren(@AuthenticationPrincipal User user) {
+        return folderService.getRootChildren(user.getId());
+    }
+
 
 
 }
