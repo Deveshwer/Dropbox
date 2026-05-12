@@ -108,6 +108,17 @@ public class FolderController {
         return folderService.searchChildFiles(folderId, user.getId(), q, page, size);
     }
 
+    @GetMapping("/{folderId}/search/all")
+    public SearchResponse searchAllChildren(
+            @PathVariable UUID folderId,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User user
+    ) {
+        return folderService.searchAllChildren(folderId, user.getId(), q, page, size);
+    }
+
 
 
 }

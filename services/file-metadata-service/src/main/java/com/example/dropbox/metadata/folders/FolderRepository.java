@@ -17,4 +17,11 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
             String name,
             Pageable pageable
     );
+
+    List<Folder> findByParentFolderIdAndDeletedAtIsNull(UUID parentFolderId);
+
+    List<Folder> findByParentFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+            UUID parentFolderId,
+            String name
+    );
 }

@@ -8,6 +8,7 @@ import com.example.dropbox.metadata.files.FileRecordRepository;
 import com.example.dropbox.metadata.files.FileSummary;
 import com.example.dropbox.metadata.shares.ShareRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -429,6 +431,86 @@ public class FolderService {
                 file.getCurrentVersionId(),
                 file.getCreatedAt(),
                 file.getUpdatedAt()
+        );
+    }
+
+    public SearchResponse searchAllChildren(UUID folderId, UUID userId, String q, int page, int size) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+
+        if (folder.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Folder not found");
+        }
+
+        if (!permissionService.canReadFolder(folderId, userId)) {
+            throw new ForbiddenOperationException("You are not allowed to access this folder");
+        }
+
+        if (page < 0) {
+            throw new IllegalArgumentException("Page must be greater than or equal to 0");
+        }
+
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Size must be between 1 and 100");
+        }
+
+        String normalizedQuery = q == null ? null : q.trim();
+
+        List<Folder> folders;
+        List<FileRecord> files;
+
+        if (normalizedQuery == null || normalizedQuery.isEmpty()) {
+            folders = folderRepository.findByParentFolderIdAndDeletedAtIsNull(folderId);
+            files = fileRecordRepository.findByFolderIdAndDeletedAtIsNull(folderId);
+        } else {
+            folders = folderRepository.findByParentFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+                    folderId,
+                    normalizedQuery
+            );
+            files = fileRecordRepository.findByFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+                    folderId,
+                    normalizedQuery
+            );
+        }
+
+        List<SearchResultItem> items = new ArrayList<>();
+        items.addAll(folders.stream().map(this::toSearchResultItem).toList());
+        items.addAll(files.stream().map(this::toSearchResultItem).toList());
+
+        List<SearchResultItem> sortedItems = items.stream()
+                .sorted(
+                        Comparator.comparing(SearchResultItem::name, String.CASE_INSENSITIVE_ORDER)
+                                .thenComparing(SearchResultItem::resourceType)
+                                .thenComparing(SearchResultItem::id)
+                )
+                .toList();
+
+        int totalElements = sortedItems.size();
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
+        int fromIndex = page * size;
+
+        if (fromIndex >= totalElements) {
+            return new SearchResponse(
+                    List.of(),
+                    page,
+                    size,
+                    totalElements,
+                    totalPages,
+                    false
+            );
+        }
+
+        int toIndex = Math.min(fromIndex + size, totalElements);
+        List<SearchResultItem> pageItems = sortedItems.subList(fromIndex, toIndex);
+        boolean hasNext = page + 1 < totalPages;
+
+        return new SearchResponse(
+                pageItems,
+                page,
+                size,
+                totalElements,
+                totalPages,
+                hasNext
         );
     }
 

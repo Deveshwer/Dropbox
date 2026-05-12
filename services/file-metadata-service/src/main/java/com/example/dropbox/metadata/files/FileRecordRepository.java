@@ -21,4 +21,11 @@ public interface FileRecordRepository extends JpaRepository<FileRecord, UUID> {
             String name,
             Pageable pageable
     );
+
+    List<FileRecord> findByFolderIdAndDeletedAtIsNull(UUID folderId);
+
+    List<FileRecord> findByFolderIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+            UUID folderId,
+            String name
+    );
 }
