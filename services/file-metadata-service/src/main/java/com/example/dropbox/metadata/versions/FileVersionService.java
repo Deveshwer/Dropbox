@@ -41,6 +41,15 @@ public class FileVersionService {
         version.setCreatedBy(createdBy);
         version.setCreatedAt(Instant.now());
 
+        if (request.sizeBytes() <= 0) {
+             throw new IllegalArgumentException("sizeBytes must be greater than 0");
+        }     
+
+        version.setStorageKey(request.storageKey());
+        version.setSizeBytes(request.sizeBytes());
+        version.setMimeType(request.mimeType());
+        version.setChecksum(request.checksum());
+
         FileVersion savedVersion = fileVersionRepository.save(version);
 
         file.setCurrentVersionId(savedVersion.getId());
@@ -66,12 +75,16 @@ public class FileVersionService {
 
     private FileVersionResponse toResponse(FileVersion version) {
         return new FileVersionResponse(
-                version.getId(),
-                version.getFileId(),
-                version.getVersionNumber(),
-                version.getStatus(),
-                version.getCreatedBy(),
-                version.getCreatedAt()
+              version.getId(),
+              version.getFileId(),
+              version.getVersionNumber(),
+              version.getStatus(),
+              version.getStorageKey(),
+              version.getSizeBytes(),
+              version.getMimeType(),
+              version.getChecksum(),
+              version.getCreatedBy(),
+              version.getCreatedAt()
         );
     }
 }

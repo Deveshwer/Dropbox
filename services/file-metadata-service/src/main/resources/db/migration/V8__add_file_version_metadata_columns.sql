@@ -1,0 +1,10 @@
+ALTER TABLE file_versions
+ADD COLUMN storage_key VARCHAR(512),
+ADD COLUMN size_bytes BIGINT,
+ADD COLUMN mime_type VARCHAR(255),
+ADD COLUMN checksum VARCHAR(255);
+
+ALTER TABLE file_versions
+ALTER COLUMN storage_key SET NOT NULL,
+ALTER COLUMN size_bytes SET NOT NULL,
+ALTER COLUMN mime_type SET NOT NULL;

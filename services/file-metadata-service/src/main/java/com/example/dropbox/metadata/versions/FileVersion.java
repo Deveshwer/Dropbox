@@ -32,4 +32,16 @@ public class FileVersion {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "storage_key", nullable = false)
+    private String storageKey;
+
+    @Column(name = "size_bytes", nullable = false)
+    private Long sizeBytes;
+
+    @Column(name = "mime_type", nullable = false)
+    private String mimeType;
+
+    @Column(name = "checksum")
+    private String checksum;
 }

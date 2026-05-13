@@ -22,6 +22,7 @@ com/example/dropbox/metadata/common/AuditEventResponse.class
 com/example/dropbox/metadata/users/UserRepository.class
 com/example/dropbox/metadata/files/CreateFileRequest.class
 com/example/dropbox/metadata/common/MetadataEventPublisher.class
+com/example/dropbox/metadata/shares/SharedWithMeItemResponse.class
 com/example/dropbox/metadata/common/KafkaProducerConfig.class
 com/example/dropbox/metadata/auth/JwtService.class
 com/example/dropbox/metadata/auth/AuthService.class
