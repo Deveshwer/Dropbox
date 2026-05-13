@@ -163,12 +163,12 @@ public class ShareService {
         return toResponse(saved);
     }
 
-    public List<ShareResponse> listSharesForCurrentUser(UUID userId) {
-    return shareRepository.findBySharedWithUserIdAndStatus(userId, ShareStatus.ACTIVE.name())
-            .stream()
-            .filter(this::isNotExpired)
-            .map(this::toResponse)
-            .toList();
+    public List<SharedWithMeItemResponse> listSharesForCurrentUser(UUID userId) {
+        return shareRepository.findBySharedWithUserIdAndStatus(userId, ShareStatus.ACTIVE.name())
+                .stream()
+                .filter(this::isNotExpired)
+                .map(this::toSharedWithMeItemResponse)
+                .toList();
     }
 
     private boolean isNotExpired(Share share) {
@@ -188,5 +188,61 @@ public class ShareService {
                 share.getExpiresAt(),
                 share.getCreatedAt()
         );
+    }
+
+    private SharedWithMeItemResponse toSharedWithMeItemResponse(Share share) {
+        if (ResourceType.FOLDER.name().equals(share.getResourceType())) {
+            return folderRepository.findById(share.getResourceId())
+                    .map(folder -> new SharedWithMeItemResponse(
+                            share.getId(),
+                            share.getResourceType(),
+                            share.getResourceId(),
+                            folder.getName(),
+                            share.getOwnerId(),
+                            share.getPermission(),
+                            share.getExpiresAt(),
+                            share.getCreatedAt(),
+                            folder.getParentFolderId(),
+                            folder.getDeletedAt() != null
+                    ))
+                    .orElseGet(() -> new SharedWithMeItemResponse(
+                            share.getId(),
+                            share.getResourceType(),
+                            share.getResourceId(),
+                            null,
+                            share.getOwnerId(),
+                            share.getPermission(),
+                            share.getExpiresAt(),
+                            share.getCreatedAt(),
+                            null,
+                            true
+                    ));
+        }
+
+        return fileRecordRepository.findById(share.getResourceId())
+                .map(file -> new SharedWithMeItemResponse(
+                        share.getId(),
+                        share.getResourceType(),
+                        share.getResourceId(),
+                        file.getName(),
+                        share.getOwnerId(),
+                        share.getPermission(),
+                        share.getExpiresAt(),
+                        share.getCreatedAt(),
+                        file.getFolderId(),
+                        file.getDeletedAt() != null
+                ))
+                .orElseGet(() -> new SharedWithMeItemResponse(
+                        share.getId(),
+                        share.getResourceType(),
+                        share.getResourceId(),
+                        null,
+                        share.getOwnerId(),
+                        share.getPermission(),
+                        share.getExpiresAt(),
+                        share.getCreatedAt(),
+                        null,
+                        true
+                ));
     }
 }

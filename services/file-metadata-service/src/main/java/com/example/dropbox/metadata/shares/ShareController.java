@@ -46,7 +46,7 @@ public class ShareController {
     }
 
     @GetMapping("/me")
-    public List<ShareResponse> listMyShares(@AuthenticationPrincipal User user) {
-      return shareService.listSharesForCurrentUser(user.getId());
+    public List<SharedWithMeItemResponse> listMyShares(@AuthenticationPrincipal User user) {
+        return shareService.listSharesForCurrentUser(user.getId());
     }
 }
