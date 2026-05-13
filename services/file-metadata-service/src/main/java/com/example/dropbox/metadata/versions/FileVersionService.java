@@ -73,6 +73,53 @@ public class FileVersionService {
                 .toList();
     }
 
+    public FileVersionResponse getCurrentVersion(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+                throw new ResourceNotFoundException("File not found");
+        }
+
+        if (!permissionService.canReadFile(fileId, userId)) {
+                throw new ForbiddenOperationException("User not allowed to access this file.");
+        }
+
+        if (file.getCurrentVersionId() == null) {
+                throw new ResourceNotFoundException("Current version not found");
+        }
+
+        FileVersion version = fileVersionRepository
+                .findByIdAndFileId(file.getCurrentVersionId(), fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("Current version not found"));
+
+        return toResponse(version);
+    }
+
+        @Transactional
+        public FileVersionResponse restoreVersion(UUID fileId, UUID versionId, UUID userId) {
+                FileRecord file = fileRecordRepository.findById(fileId)
+                        .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+                if (file.getDeletedAt() != null) {
+                        throw new ResourceNotFoundException("File not found");
+                }
+
+                if (!permissionService.canWriteFile(fileId, userId)) {
+                        throw new ForbiddenOperationException("User not allowed to restore a version for this file.");
+                }
+
+                FileVersion version = fileVersionRepository.findByIdAndFileId(versionId, fileId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Version not found"));
+
+                file.setCurrentVersionId(version.getId());
+                file.setUpdatedAt(Instant.now());
+                fileRecordRepository.save(file);
+
+                return toResponse(version);
+        }
+
+
     private FileVersionResponse toResponse(FileVersion version) {
         return new FileVersionResponse(
               version.getId(),

@@ -29,4 +29,22 @@ public class FileVersionController {
     public List<FileVersionResponse> getVersions(@PathVariable UUID fileId, @AuthenticationPrincipal User user) {
         return fileVersionService.getVersions(fileId, user.getId());
     }
+
+    @GetMapping("/current")
+    public FileVersionResponse getCurrentVersion(
+            @PathVariable UUID fileId,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileVersionService.getCurrentVersion(fileId, user.getId());
+    }
+
+    @PatchMapping("/{versionId}/restore")
+    public FileVersionResponse restoreVersion(
+            @PathVariable UUID fileId,
+            @PathVariable UUID versionId,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileVersionService.restoreVersion(fileId, versionId, user.getId());
+    }
+
 }
