@@ -76,4 +76,12 @@ public class FileController {
     public void emptyTrash(@AuthenticationPrincipal User user) {
         fileService.emptyTrash(user.getId());
     }
+
+    @GetMapping("/{fileId}/download")
+    public FileDownloadResponse getDownloadInfo(
+            @PathVariable UUID fileId,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.getDownloadInfo(fileId, user.getId());
+    }
 }

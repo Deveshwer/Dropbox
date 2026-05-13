@@ -6,6 +6,7 @@ import com.example.dropbox.metadata.common.ResourceNotFoundException;
 import com.example.dropbox.metadata.folders.Folder;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
+import com.example.dropbox.metadata.versions.FileVersion;
 import com.example.dropbox.metadata.versions.FileVersionRepository;
 import java.time.Instant;
 import java.util.UUID;
@@ -244,6 +245,37 @@ public class FileService {
                 "name=" + file.getName() + ",source=emptyTrash"
         );
         }
+    }
+
+    public FileDownloadResponse getDownloadInfo(UUID fileId, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
+
+        if (!permissionService.canReadFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to access this file");
+        }
+
+        if (file.getCurrentVersionId() == null) {
+            throw new ResourceNotFoundException("Current version not found");
+        }
+
+        FileVersion version = fileVersionRepository.findById(file.getCurrentVersionId())
+                .orElseThrow(() -> new ResourceNotFoundException("Current version not found"));
+
+        return new FileDownloadResponse(
+                file.getId(),
+                version.getId(),
+                file.getName(),
+                version.getStorageKey(),
+                version.getMimeType(),
+                version.getSizeBytes(),
+                version.getChecksum(),
+                null
+        );
     }
 
     private FileResponse toResponse(FileRecord file) {
