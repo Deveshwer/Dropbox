@@ -6,8 +6,12 @@ import com.example.dropbox.metadata.common.ResourceNotFoundException;
 import com.example.dropbox.metadata.folders.Folder;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
+import com.example.dropbox.metadata.versions.CreateFileVersionRequest;
 import com.example.dropbox.metadata.versions.FileVersion;
 import com.example.dropbox.metadata.versions.FileVersionRepository;
+import com.example.dropbox.metadata.versions.FileVersionResponse;
+import com.example.dropbox.metadata.versions.FileVersionService;
+
 import java.time.Instant;
 import java.util.UUID;
 import java.util.List;
@@ -29,6 +33,9 @@ public class FileService {
     private final FileVersionRepository fileVersionRepository;
     private final ShareRepository shareRepository;
     private final AuditEventService auditEventService;
+    private final FileUploadSessionRepository fileUploadSessionRepository;
+    private final FileVersionService fileVersionService;
+
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
         Folder folder = folderRepository.findById(request.folderId())
@@ -299,6 +306,18 @@ public class FileService {
                 + "/files/" + fileId
                 + "/uploads/" + Instant.now().toEpochMilli()
                 + "-" + safeFileName;
+        FileUploadSession session = new FileUploadSession();
+        session.setId(UUID.randomUUID());
+        session.setFileId(file.getId());
+        session.setInitiatedBy(userId);
+        session.setStorageKey(storageKey);
+        session.setFileName(request.fileName().trim());
+        session.setMimeType(request.mimeType());
+        session.setSizeBytes(request.sizeBytes());
+        session.setStatus(FileUploadStatus.INITIATED.name());
+        session.setCreatedAt(Instant.now());
+
+        fileUploadSessionRepository.save(session);
 
         return new InitiateFileUploadResponse(
                 file.getId(),
@@ -306,6 +325,42 @@ public class FileService {
                 "DIRECT_STORAGE_PENDING",
                 null
         );
+    }
+
+    @Transactional
+    public FileVersionResponse completeUpload(UUID fileId, CompleteFileUploadRequest request, UUID userId) {
+        FileUploadSession session = fileUploadSessionRepository
+                .findByFileIdAndInitiatedByAndStorageKeyAndStatus(
+                        fileId,
+                        userId,
+                        request.storageKey(),
+                        FileUploadStatus.INITIATED.name()
+                )
+                .orElseThrow(() -> new IllegalArgumentException("No initiated upload session found for this file and storageKey"));
+
+        if (!session.getMimeType().equals(request.mimeType())) {
+            throw new IllegalArgumentException("mimeType does not match initiated upload");
+        }
+
+        if (!session.getSizeBytes().equals(request.sizeBytes())) {
+            throw new IllegalArgumentException("sizeBytes does not match initiated upload");
+        }
+
+        CreateFileVersionRequest versionRequest = new CreateFileVersionRequest(
+                request.status(),
+                request.storageKey(),
+                request.sizeBytes(),
+                request.mimeType(),
+                request.checksum()
+        );
+
+        FileVersionResponse response = fileVersionService.create(fileId, versionRequest, userId);
+
+        session.setStatus(FileUploadStatus.COMPLETED.name());
+        session.setCompletedAt(Instant.now());
+        fileUploadSessionRepository.save(session);
+
+        return response;
     }
 
     private FileResponse toResponse(FileRecord file) {

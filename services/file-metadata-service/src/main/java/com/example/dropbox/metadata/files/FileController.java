@@ -105,13 +105,6 @@ public class FileController {
             @Valid @RequestBody CompleteFileUploadRequest request,
             @AuthenticationPrincipal User user
     ) {
-        CreateFileVersionRequest versionRequest = new CreateFileVersionRequest(
-                request.status(),
-                request.storageKey(),
-                request.sizeBytes(),
-                request.mimeType(),
-                request.checksum()
-        );
-        return fileVersionService.create(fileId, versionRequest, user.getId());
+        return fileService.completeUpload(fileId, request, user.getId());
     }
 }

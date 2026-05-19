@@ -52,7 +52,9 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                null,
+                null
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -82,7 +84,9 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                null,
+                null
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -106,7 +110,9 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                null,
+                null
         );
         UUID fileId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
