@@ -278,6 +278,36 @@ public class FileService {
         );
     }
 
+    public InitiateFileUploadResponse initiateUpload(UUID fileId, InitiateFileUploadRequest request, UUID userId) {
+        FileRecord file = fileRecordRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found"));
+
+        if (file.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("File not found");
+        }
+
+        if (!permissionService.canWriteFile(fileId, userId)) {
+            throw new ForbiddenOperationException("User not allowed to upload a new version for this file");
+        }
+
+        if (request.sizeBytes() <= 0) {
+            throw new IllegalArgumentException("sizeBytes must be greater than 0");
+        }
+
+        String safeFileName = request.fileName().trim().replaceAll("\\s+", "-");
+        String storageKey = "users/" + userId
+                + "/files/" + fileId
+                + "/uploads/" + Instant.now().toEpochMilli()
+                + "-" + safeFileName;
+
+        return new InitiateFileUploadResponse(
+                file.getId(),
+                storageKey,
+                "DIRECT_STORAGE_PENDING",
+                null
+        );
+    }
+
     private FileResponse toResponse(FileRecord file) {
         return new FileResponse(
                 file.getId(),

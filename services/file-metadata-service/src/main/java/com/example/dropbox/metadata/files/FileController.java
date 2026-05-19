@@ -7,6 +7,9 @@ import java.util.UUID;
 import java.util.List;
 import com.example.dropbox.metadata.users.User;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.dropbox.metadata.versions.FileVersionResponse;
+import com.example.dropbox.metadata.versions.FileVersionService;
+import com.example.dropbox.metadata.versions.CreateFileVersionRequest;
 
 @RestController
 @RequestMapping("/api/files")
@@ -14,6 +17,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 public class FileController {
 
     private final FileService fileService;
+
+    private final FileVersionService fileVersionService;
 
     @PostMapping
     public FileResponse create(@Valid @RequestBody CreateFileRequest request, @AuthenticationPrincipal User user) {
@@ -83,5 +88,30 @@ public class FileController {
             @AuthenticationPrincipal User user
     ) {
         return fileService.getDownloadInfo(fileId, user.getId());
+    }
+
+    @PostMapping("/{fileId}/uploads/initiate")
+    public InitiateFileUploadResponse initiateUpload(
+            @PathVariable UUID fileId,
+            @Valid @RequestBody InitiateFileUploadRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.initiateUpload(fileId, request, user.getId());
+    }
+
+    @PostMapping("/{fileId}/uploads/complete")
+    public FileVersionResponse completeUpload(
+            @PathVariable UUID fileId,
+            @Valid @RequestBody CompleteFileUploadRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        CreateFileVersionRequest versionRequest = new CreateFileVersionRequest(
+                request.status(),
+                request.storageKey(),
+                request.sizeBytes(),
+                request.mimeType(),
+                request.checksum()
+        );
+        return fileVersionService.create(fileId, versionRequest, user.getId());
     }
 }
