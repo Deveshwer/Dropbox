@@ -47,3 +47,9 @@ app:
   kafka:
     topics:
       metadata-events: metadata.events
+
+storage:
+  s3:
+    bucket: gkdeveshwer-dropbox-dev
+    region: ap-south-2
+    upload-url-expiry-minutes: 15

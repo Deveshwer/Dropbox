@@ -11,10 +11,10 @@ import com.example.dropbox.metadata.versions.FileVersion;
 import com.example.dropbox.metadata.versions.FileVersionRepository;
 import com.example.dropbox.metadata.versions.FileVersionResponse;
 import com.example.dropbox.metadata.versions.FileVersionService;
-
+import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +22,10 @@ import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import com.example.dropbox.metadata.common.AuditEventService;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +39,8 @@ public class FileService {
     private final AuditEventService auditEventService;
     private final FileUploadSessionRepository fileUploadSessionRepository;
     private final FileVersionService fileVersionService;
+    private final S3Presigner s3Presigner;
+    private final S3StorageProperties s3StorageProperties;
 
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
@@ -306,6 +312,7 @@ public class FileService {
                 + "/files/" + fileId
                 + "/uploads/" + Instant.now().toEpochMilli()
                 + "-" + safeFileName;
+
         FileUploadSession session = new FileUploadSession();
         session.setId(UUID.randomUUID());
         session.setFileId(file.getId());
@@ -317,15 +324,28 @@ public class FileService {
         session.setStatus(FileUploadStatus.INITIATED.name());
         Instant now = Instant.now();
         session.setCreatedAt(now);
-        session.setExpiresAt(now.plusSeconds(15 * 60));
+        session.setExpiresAt(now.plusSeconds(s3StorageProperties.uploadUrlExpiryMinutes() * 60));
 
         fileUploadSessionRepository.save(session);
+
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(s3StorageProperties.bucket())
+                .key(storageKey)
+                .contentType(request.mimeType())
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(s3StorageProperties.uploadUrlExpiryMinutes()))
+                .putObjectRequest(putObjectRequest)
+                .build();
+
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
 
         return new InitiateFileUploadResponse(
                 file.getId(),
                 storageKey,
-                "DIRECT_STORAGE_PENDING",
-                null,
+                "S3_PRESIGNED_PUT",
+                presignedRequest.url().toString(),
                 session.getExpiresAt()
         );
     }
