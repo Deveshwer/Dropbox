@@ -315,7 +315,9 @@ public class FileService {
         session.setMimeType(request.mimeType());
         session.setSizeBytes(request.sizeBytes());
         session.setStatus(FileUploadStatus.INITIATED.name());
-        session.setCreatedAt(Instant.now());
+        Instant now = Instant.now();
+        session.setCreatedAt(now);
+        session.setExpiresAt(now.plusSeconds(15 * 60));
 
         fileUploadSessionRepository.save(session);
 
@@ -323,8 +325,13 @@ public class FileService {
                 file.getId(),
                 storageKey,
                 "DIRECT_STORAGE_PENDING",
-                null
+                null,
+                session.getExpiresAt()
         );
+    }
+
+    private boolean isExpired(FileUploadSession session) {
+      return session.getExpiresAt().isBefore(Instant.now());
     }
 
     @Transactional
@@ -344,6 +351,10 @@ public class FileService {
 
         if (!session.getSizeBytes().equals(request.sizeBytes())) {
             throw new IllegalArgumentException("sizeBytes does not match initiated upload");
+        }
+
+        if (isExpired(session)) {
+            throw new IllegalArgumentException("Upload session has expired");
         }
 
         CreateFileVersionRequest versionRequest = new CreateFileVersionRequest(

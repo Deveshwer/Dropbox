@@ -44,4 +44,7 @@ public class FileUploadSession {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
 }
