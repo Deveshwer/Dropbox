@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record S3StorageProperties(
         String bucket,
         String region,
-        long uploadUrlExpiryMinutes
+        long uploadUrlExpiryMinutes,
+        long downloadUrlExpiryMinutes
 ) {
 }

@@ -22,8 +22,11 @@ import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import com.example.dropbox.metadata.common.AuditEventService;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -279,6 +282,19 @@ public class FileService {
         FileVersion version = fileVersionRepository.findById(file.getCurrentVersionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Current version not found"));
 
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(s3StorageProperties.bucket())
+                .key(version.getStorageKey())
+                .responseContentType(version.getMimeType())
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(s3StorageProperties.downloadUrlExpiryMinutes()))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+
         return new FileDownloadResponse(
                 file.getId(),
                 version.getId(),
@@ -287,7 +303,7 @@ public class FileService {
                 version.getMimeType(),
                 version.getSizeBytes(),
                 version.getChecksum(),
-                null
+                presignedRequest.url().toString()
         );
     }
 
