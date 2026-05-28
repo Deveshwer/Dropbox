@@ -2,6 +2,8 @@ package com.example.dropbox.metadata.versions;
 
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.ResourceNotFoundException;
+import com.example.dropbox.metadata.common.ResourceType;
+import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.files.FileRecord;
 import com.example.dropbox.metadata.files.FileRecordRepository;
 import java.time.Instant;
@@ -18,6 +20,7 @@ public class FileVersionService {
     private final FileVersionRepository fileVersionRepository;
     private final FileRecordRepository fileRecordRepository;
     private final PermissionService permissionService;
+    private final AuditEventService auditEventService;
 
     @Transactional
     public FileVersionResponse create(UUID fileId, CreateFileVersionRequest request, UUID createdBy) {
@@ -115,6 +118,15 @@ public class FileVersionService {
                 file.setCurrentVersionId(version.getId());
                 file.setUpdatedAt(Instant.now());
                 fileRecordRepository.save(file);
+
+                auditEventService.recordEvent(
+                        "FILE_VERSION_RESTORED",
+                        ResourceType.FILE.name(),
+                        fileId,
+                        userId,
+                        "restoredVersionId=" + version.getId()
+                                + ", versionNumber=" + version.getVersionNumber()
+                );
 
                 return toResponse(version);
         }

@@ -397,6 +397,17 @@ public class FileService {
 
         fileUploadSessionRepository.save(session);
 
+        auditEventService.recordEvent(
+          "UPLOAD_INITIATED",
+          ResourceType.FILE.name(),
+          file.getId(),
+          userId,
+          "storageKey=" + storageKey
+                  + ", mimeType=" + request.mimeType()
+                  + ", sizeBytes=" + request.sizeBytes()
+                  + ", expiresAt=" + session.getExpiresAt()
+        );
+
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(s3StorageProperties.bucket())
                 .key(storageKey)
@@ -461,6 +472,16 @@ public class FileService {
         session.setStatus(FileUploadStatus.COMPLETED.name());
         session.setCompletedAt(Instant.now());
         fileUploadSessionRepository.save(session);
+
+        auditEventService.recordEvent(
+          "UPLOAD_COMPLETED",
+          ResourceType.FILE.name(),
+          fileId,
+          userId,
+          "versionId=" + response.id()
+                  + ", versionNumber=" + response.versionNumber()
+                  + ", storageKey=" + response.storageKey()
+        );
 
         return response;
     }
