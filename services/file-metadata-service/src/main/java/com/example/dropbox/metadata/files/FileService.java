@@ -22,6 +22,7 @@ import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import com.example.dropbox.metadata.common.AuditEventService;
+
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -29,6 +30,11 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +50,7 @@ public class FileService {
     private final FileVersionService fileVersionService;
     private final S3Presigner s3Presigner;
     private final S3StorageProperties s3StorageProperties;
+    private final S3Client s3Client;
 
 
     public FileResponse create(CreateFileRequest request, UUID ownerId) {
@@ -263,6 +270,35 @@ public class FileService {
         }
     }
 
+    private HeadObjectResponse verifyUploadedObject(String storageKey, Long expectedSizeBytes, String expectedMimeType) {
+        try {
+            HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                    .bucket(s3StorageProperties.bucket())
+                    .key(storageKey)
+                    .build();
+
+            HeadObjectResponse response = s3Client.headObject(headObjectRequest);
+
+            if (response.contentLength() == null || response.contentLength() != expectedSizeBytes.longValue()) {
+                throw new IllegalArgumentException("Uploaded object size does not match expected size");
+            }
+
+            String actualContentType = response.contentType();
+            if (actualContentType != null && !actualContentType.equals(expectedMimeType)) {
+                throw new IllegalArgumentException("Uploaded object content type does not match expected mimeType");
+            }
+
+            return response;
+        } catch (NoSuchKeyException ex) {
+            throw new IllegalArgumentException("Uploaded object not found in storage");
+        } catch (S3Exception ex) {
+            if (ex.statusCode() == 404) {
+                throw new IllegalArgumentException("Uploaded object not found in storage");
+            }
+            throw ex;
+        }
+    }
+
     public FileDownloadResponse getDownloadInfo(UUID fileId, UUID userId) {
         FileRecord file = fileRecordRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found"));
@@ -388,6 +424,8 @@ public class FileService {
         if (!session.getSizeBytes().equals(request.sizeBytes())) {
             throw new IllegalArgumentException("sizeBytes does not match initiated upload");
         }
+
+        verifyUploadedObject(request.storageKey(), request.sizeBytes(), request.mimeType());
 
         if (isExpired(session)) {
             throw new IllegalArgumentException("Upload session has expired");

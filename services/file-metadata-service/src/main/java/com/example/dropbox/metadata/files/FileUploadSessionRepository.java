@@ -1,5 +1,6 @@
 package com.example.dropbox.metadata.files;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,4 +19,6 @@ public interface FileUploadSessionRepository extends JpaRepository<FileUploadSes
             String storageKey,
             String status
     );
+
+    long deleteByStatusAndExpiresAtBefore(String status, Instant expiresAt);
 }
