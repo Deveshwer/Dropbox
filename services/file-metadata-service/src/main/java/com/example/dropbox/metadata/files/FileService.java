@@ -322,6 +322,7 @@ public class FileService {
                 .bucket(s3StorageProperties.bucket())
                 .key(version.getStorageKey())
                 .responseContentType(version.getMimeType())
+                .responseContentDisposition("attachment; filename=\"" + file.getName() + "\"")
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
