@@ -318,6 +318,22 @@ public class FileService {
         FileVersion version = fileVersionRepository.findById(file.getCurrentVersionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Current version not found"));
 
+        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+          .bucket(s3StorageProperties.bucket())
+          .key(version.getStorageKey())
+          .build();
+
+        try {
+            s3Client.headObject(headObjectRequest);
+        } catch (NoSuchKeyException ex) {
+            throw new ResourceNotFoundException("Current file object not found in storage");
+        } catch (S3Exception ex) {
+            if (ex.statusCode() == 404) {
+                throw new ResourceNotFoundException("Current file object not found in storage");
+            }
+            throw ex;
+        }
+
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(s3StorageProperties.bucket())
                 .key(version.getStorageKey())
