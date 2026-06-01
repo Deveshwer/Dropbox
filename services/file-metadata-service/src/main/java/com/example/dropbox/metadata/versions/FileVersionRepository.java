@@ -10,4 +10,5 @@ public interface FileVersionRepository extends JpaRepository<FileVersion, UUID> 
     Optional<FileVersion> findByFileIdAndVersionNumber(UUID fileId, Long versionNumber);
     Optional<FileVersion> findTopByFileIdOrderByVersionNumberDesc(UUID fileId);
     Optional<FileVersion> findByIdAndFileId(UUID id, UUID fileId);
+    void deleteByFileId(UUID fileId);
 }

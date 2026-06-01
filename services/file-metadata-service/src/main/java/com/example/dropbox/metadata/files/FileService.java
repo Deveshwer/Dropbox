@@ -35,6 +35,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -238,6 +239,14 @@ public class FileService {
             throw new IllegalArgumentException("File is not deleted");
         }
 
+        int deletedVersionCount = deleteVersionObjectsFromStorage(fileId);
+
+        file.setCurrentVersionId(null);
+        file.setUpdatedAt(Instant.now());
+        fileRecordRepository.saveAndFlush(file);
+
+        fileUploadSessionRepository.deleteByFileId(fileId);
+        fileVersionRepository.deleteByFileId(fileId);
         shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
         fileRecordRepository.delete(file);
 
@@ -246,7 +255,7 @@ public class FileService {
             ResourceType.FILE.name(),
             file.getId(),
             userId,
-            "name=" + file.getName()
+            "name=" + file.getName() + ",deletedVersionCount=" + deletedVersionCount
         );
     }
 
@@ -258,15 +267,26 @@ public class FileService {
     public void emptyTrash(UUID userId) {
         List<FileRecord> deletedFiles = fileRecordRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
         for (FileRecord file : deletedFiles) {
+            int deletedVersionCount = deleteVersionObjectsFromStorage(file.getId());
+
+            file.setCurrentVersionId(null);
+            file.setUpdatedAt(Instant.now());
+            fileRecordRepository.saveAndFlush(file);
+
+            fileUploadSessionRepository.deleteByFileId(file.getId());
+            fileVersionRepository.deleteByFileId(file.getId());
             shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), file.getId());
             fileRecordRepository.delete(file);
+
             auditEventService.recordEvent(
                 "FILE_PERMANENTLY_DELETED",
                 ResourceType.FILE.name(),
                 file.getId(),
                 userId,
-                "name=" + file.getName() + ",source=emptyTrash"
-        );
+                "name=" + file.getName()
+                        + ",source=emptyTrash"
+                        + ",deletedVersionCount=" + deletedVersionCount
+            );
         }
     }
 
@@ -484,6 +504,33 @@ public class FileService {
         );
 
         return response;
+    }
+
+    private void deleteObjectFromStorage(String storageKey) {
+        try {
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(s3StorageProperties.bucket())
+                    .key(storageKey)
+                    .build();
+
+            s3Client.deleteObject(deleteObjectRequest);
+        } catch (S3Exception ex) {
+            // Treat "already missing" as idempotent success.
+            if (ex.statusCode() == 404 || "NoSuchKey".equals(ex.awsErrorDetails().errorCode())) {
+                return;
+            }
+            throw ex;
+        }
+    }
+
+    private int deleteVersionObjectsFromStorage(UUID fileId) {
+        List<FileVersion> versions = fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId);
+        for (FileVersion version : versions) {
+            if (version.getStorageKey() != null && !version.getStorageKey().isBlank()) {
+                deleteObjectFromStorage(version.getStorageKey());
+            }
+        }
+        return versions.size();
     }
 
     private FileResponse toResponse(FileRecord file) {

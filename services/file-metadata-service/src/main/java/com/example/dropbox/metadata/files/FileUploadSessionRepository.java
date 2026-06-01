@@ -21,4 +21,6 @@ public interface FileUploadSessionRepository extends JpaRepository<FileUploadSes
     );
 
     long deleteByStatusAndExpiresAtBefore(String status, Instant expiresAt);
+
+    void deleteByFileId(UUID fileId);
 }
