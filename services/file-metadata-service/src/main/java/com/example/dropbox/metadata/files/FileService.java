@@ -170,11 +170,6 @@ public class FileService {
             throw new ForbiddenOperationException("User not allowed to delete this file");
         }
 
-        boolean hasVersions = !fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId).isEmpty();
-        if (hasVersions) {
-            throw new IllegalArgumentException("File cannot be deleted because versions exist");
-        }
-
         // shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
         // fileRecordRepository.delete(file);
 
