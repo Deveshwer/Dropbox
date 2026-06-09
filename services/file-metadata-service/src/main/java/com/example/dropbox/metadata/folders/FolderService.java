@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import com.example.dropbox.metadata.files.FileService;
 import java.util.Comparator;
 
 @Service
@@ -32,6 +33,7 @@ public class FolderService {
     private final PermissionService permissionService;
     private final ShareRepository shareRepository;
     private final AuditEventService auditEventService;
+    private final FileService fileService;
 
     public FolderResponse create(CreateFolderRequest request, UUID ownerId) {
         Folder parentFolder = null;
@@ -160,38 +162,43 @@ public class FolderService {
     })
     @Transactional
     public void deleteFolder(UUID folderId, UUID userId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+        Folder root = folderRepository.findById(folderId)
+              .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (folder.getDeletedAt() != null) {
+        if (root.getDeletedAt() != null) {
             throw new ResourceNotFoundException("Folder not found");
         }
 
-        if (!folder.getOwnerId().equals(userId)) {
+        if (!root.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to delete this folder");
         }
 
-        boolean hasChildFolders = !folderRepository.findByParentFolderId(folderId).isEmpty();
-        boolean hasFiles = !fileRecordRepository.findByFolderId(folderId).isEmpty();
+        List<Folder> subtree = collectFolderSubtree(root);
 
-        if (hasChildFolders || hasFiles) {
-            throw new IllegalArgumentException("Folder is not empty");
+        for (Folder folder : subtree) {
+            for (FileRecord file : fileRecordRepository.findByFolderId(folder.getId())) {
+                if (file.getDeletedAt() == null) {
+                    fileService.deleteFile(file.getId(), userId);
+                }
+            }
         }
 
-        // shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
-        // folderRepository.delete(folder);
+        Instant now = Instant.now();
+        for (Folder folder : subtree) {
+            if (folder.getDeletedAt() == null) {
+                folder.setDeletedAt(now);
+                folder.setUpdatedAt(now);
+                folderRepository.save(folder);
 
-        folder.setDeletedAt(Instant.now());
-        folder.setUpdatedAt(Instant.now());
-        folderRepository.save(folder);
-
-        auditEventService.recordEvent(
-            "FOLDER_SOFT_DELETED",
-            ResourceType.FOLDER.name(),
-            folder.getId(),
-            userId,
-            "name=" + folder.getName()
-        );
+                auditEventService.recordEvent(
+                    "FOLDER_SOFT_DELETED",
+                    ResourceType.FOLDER.name(),
+                    folder.getId(),
+                    userId,
+                    "name=" + folder.getName()
+                );
+            }
+        }
     }
 
     @Caching(evict = {
@@ -199,30 +206,45 @@ public class FolderService {
     @CacheEvict(value = "filePermissions", allEntries = true)
     })
     public FolderResponse restoreFolder(UUID folderId, UUID userId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+        Folder root = folderRepository.findById(folderId)
+              .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!folder.getOwnerId().equals(userId)) {
+        if (!root.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to restore this folder");
         }
 
-        if (folder.getDeletedAt() == null) {
+        if (root.getDeletedAt() == null) {
             throw new IllegalArgumentException("Folder is not deleted");
         }
 
-        folder.setDeletedAt(null);
-        folder.setUpdatedAt(Instant.now());
+        List<Folder> subtree = collectFolderSubtree(root);
+        Instant now = Instant.now();
 
-        Folder saved = folderRepository.save(folder);
+        for (Folder folder : subtree) {
+            if (folder.getDeletedAt() != null) {
+                folder.setDeletedAt(null);
+                folder.setUpdatedAt(now);
+                folderRepository.save(folder);
 
-        auditEventService.recordEvent(
-            "FOLDER_RESTORED",
-            ResourceType.FOLDER.name(),
-            saved.getId(),
-            userId,
-            "name=" + saved.getName()
-        );
-        return toFolderResponse(saved);
+                auditEventService.recordEvent(
+                    "FOLDER_RESTORED",
+                    ResourceType.FOLDER.name(),
+                    folder.getId(),
+                    userId,
+                    "name=" + folder.getName()
+                );
+            }
+        }
+
+        for (Folder folder : subtree) {
+            for (FileRecord file : fileRecordRepository.findByFolderId(folder.getId())) {
+                if (file.getDeletedAt() != null) {
+                    fileService.restoreFile(file.getId(), userId);
+                }
+            }
+        }
+
+        return toFolderResponse(root);
     }
 
     public List<FolderResponse> listDeletedFolders(UUID userId) {
@@ -238,27 +260,18 @@ public class FolderService {
     })
     @Transactional
     public void permanentlyDeleteFolder(UUID folderId, UUID userId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
+        Folder root = folderRepository.findById(folderId)
+              .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
-        if (!folder.getOwnerId().equals(userId)) {
+        if (!root.getOwnerId().equals(userId)) {
             throw new ForbiddenOperationException("You are not allowed to permanently delete this folder");
         }
 
-        if (folder.getDeletedAt() == null) {
+        if (root.getDeletedAt() == null) {
             throw new IllegalArgumentException("Folder is not deleted");
         }
 
-        shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folderId);
-        folderRepository.delete(folder);
-
-        auditEventService.recordEvent(
-            "FOLDER_PERMANENTLY_DELETED",
-            ResourceType.FOLDER.name(),
-            folder.getId(),
-            userId,
-            "name=" + folder.getName()
-        );
+        permanentlyDeleteFolderSubtree(root, userId, null);
     }
 
     @Caching(evict = {
@@ -268,16 +281,12 @@ public class FolderService {
     @Transactional
     public void emptyTrash(UUID userId) {
         List<Folder> deletedFolders = folderRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
+
         for (Folder folder : deletedFolders) {
-            shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folder.getId());
-            folderRepository.delete(folder);
-            auditEventService.recordEvent(
-                "FOLDER_PERMANENTLY_DELETED",
-                ResourceType.FOLDER.name(),
-                folder.getId(),
-                userId,
-                "name=" + folder.getName() + ",source=emptyTrash"
-            );
+            if (hasDeletedAncestor(folder)) {
+                continue;
+            }
+            permanentlyDeleteFolderSubtree(folder, userId, "emptyTrash");
         }
     }
 
@@ -396,6 +405,68 @@ public class FolderService {
                 resultPage.hasNext()
         );
     }
+
+    private List<Folder> collectFolderSubtree(Folder root) {
+        List<Folder> folders = new ArrayList<>();
+        collectFolderSubtree(root, folders);
+        return folders;
+    }
+
+    private void collectFolderSubtree(Folder folder, List<Folder> folders) {
+        folders.add(folder);
+        for (Folder child : folderRepository.findByParentFolderId(folder.getId())) {
+            collectFolderSubtree(child, folders);
+        }
+    }
+
+    private boolean hasDeletedAncestor(Folder folder) {
+        UUID parentId = folder.getParentFolderId();
+        while (parentId != null) {
+            Folder parent = folderRepository.findById(parentId).orElse(null);
+            if (parent == null) {
+                return false;
+            }
+            if (parent.getDeletedAt() != null) {
+                return true;
+            }
+            parentId = parent.getParentFolderId();
+        }
+        return false;
+    }
+
+    private void permanentlyDeleteFolderSubtree(Folder root, UUID userId, String source) {
+        List<Folder> subtree = collectFolderSubtree(root);
+
+        for (int i = subtree.size() - 1; i >= 0; i--) {
+            Folder folder = subtree.get(i);
+
+            for (FileRecord file : fileRecordRepository.findByFolderId(folder.getId())) {
+                if (file.getDeletedAt() == null) {
+                    file.setDeletedAt(Instant.now());
+                    file.setUpdatedAt(Instant.now());
+                    fileRecordRepository.save(file);
+                }
+                fileService.permanentlyDeleteFile(file.getId(), userId);
+            }
+
+            shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FOLDER.name(), folder.getId());
+            folderRepository.delete(folder);
+
+            String details = "name=" + folder.getName();
+            if (source != null) {
+                details += ",source=" + source;
+            }
+
+            auditEventService.recordEvent(
+                "FOLDER_PERMANENTLY_DELETED",
+                ResourceType.FOLDER.name(),
+                folder.getId(),
+                userId,
+                details
+            );
+        }
+    }
+
 
     private SearchResultItem toSearchResultItem(FileRecord file) {
         return new SearchResultItem(
