@@ -10,9 +10,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
+import com.example.dropbox.metadata.common.OutboxEventRepository;
+import com.example.dropbox.metadata.common.SyncEventRepository;
 import com.example.dropbox.metadata.files.FileRecordRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
 import java.time.Instant;
@@ -39,6 +42,12 @@ class FolderServiceTest {
     @Mock
     private AuditEventRepository auditEventRepository;
 
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private SyncEventRepository syncEventRepository;
+
     @Test
     void deleteFolderDeletesShareRowsAndFolderWhenEmpty() {
         FolderService folderService = new FolderService(
@@ -46,7 +55,8 @@ class FolderServiceTest {
                 fileRecordRepository,
                 null,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                auditEventService(),
+                null
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -64,13 +74,14 @@ class FolderServiceTest {
     }
 
     @Test
-    void deleteFolderThrowsWhenNotEmpty() {
+    void deleteFolderSoftDeletesSubtreeRecursively() {
         FolderService folderService = new FolderService(
                 folderRepository,
                 fileRecordRepository,
                 null,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                auditEventService(),
+                null
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -79,16 +90,15 @@ class FolderServiceTest {
 
         when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
         when(folderRepository.findByParentFolderId(folderId)).thenReturn(List.of(child));
+        when(folderRepository.findByParentFolderId(child.getId())).thenReturn(List.of());
+        when(fileRecordRepository.findByFolderId(any())).thenReturn(List.of());
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> folderService.deleteFolder(folderId, ownerId)
-        );
+        assertDoesNotThrow(() -> folderService.deleteFolder(folderId, ownerId));
 
-        assertEquals("Folder is not empty", ex.getMessage());
-        verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
-        verify(folderRepository, never()).delete(any(Folder.class));
-        verify(folderRepository, never()).save(any(Folder.class));
+        verify(folderRepository).save(folder);
+        verify(folderRepository).save(child);
+        assertNotNull(folder.getDeletedAt());
+        assertNotNull(child.getDeletedAt());
     }
 
     @Test
@@ -98,7 +108,8 @@ class FolderServiceTest {
                 fileRecordRepository,
                 null,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper())
+                auditEventService(),
+                null
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -113,6 +124,16 @@ class FolderServiceTest {
         verify(fileRecordRepository, never()).findByFolderId(any());
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
         verify(folderRepository, never()).save(any(Folder.class));
+    }
+
+    private AuditEventService auditEventService() {
+        return new AuditEventService(
+                auditEventRepository,
+                null,
+                outboxEventRepository,
+                syncEventRepository,
+                new ObjectMapper().registerModule(new JavaTimeModule())
+        );
     }
 
     private Folder folder(UUID id, UUID ownerId, UUID parentFolderId) {

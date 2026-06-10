@@ -24,6 +24,12 @@
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/OutboxPublisherService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/ResourceNotFoundException.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/ResourceType.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncBootstrapResponse.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncController.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncEvent.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncEventRepository.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncEventResponse.java
+/Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/common/SyncService.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/CompleteFileUploadRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/CreateFileRequest.java
 /Users/gkdeveshwer/Documents/Personal/Projects/Dropbox/services/file-metadata-service/src/main/java/com/example/dropbox/metadata/files/FileController.java

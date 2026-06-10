@@ -24,6 +24,8 @@ public class AuditEventService {
 
     private final OutboxEventRepository outboxEventRepository;
 
+    private final SyncEventRepository syncEventRepository;
+
     private final ObjectMapper objectMapper;
 
     public List<AuditEventResponse> listEventsForActor(UUID actorId) {
@@ -100,6 +102,19 @@ public class AuditEventService {
 
         outboxEventRepository.save(outboxEvent);
 
+        if (isSyncEligibleResource(event.getResourceType())) {
+            SyncEvent syncEvent = new SyncEvent();
+            syncEvent.setEventId(event.getId());
+            syncEvent.setEventType(event.getEventType());
+            syncEvent.setResourceType(event.getResourceType());
+            syncEvent.setResourceId(event.getResourceId());
+            syncEvent.setActorId(event.getActorId());
+            syncEvent.setMetadata(event.getMetadata());
+            syncEvent.setCreatedAt(event.getCreatedAt());
+
+            syncEventRepository.save(syncEvent);
+        }
+
 
         // if (metadataEventPublisher != null) {
         //     metadataEventPublisher.publish(new MetadataEventMessage(
@@ -136,6 +151,11 @@ public class AuditEventService {
               .stream()
               .map(this::toResponse)
               .toList();
+    }
+
+    private boolean isSyncEligibleResource(String resourceType) {
+        return ResourceType.FILE.name().equals(resourceType)
+                || ResourceType.FOLDER.name().equals(resourceType);
     }
 
     private AuditEventResponse toResponse(AuditEvent event) {

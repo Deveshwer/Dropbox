@@ -10,9 +10,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
+import com.example.dropbox.metadata.common.OutboxEventRepository;
+import com.example.dropbox.metadata.common.SyncEventRepository;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
 import com.example.dropbox.metadata.versions.FileVersion;
@@ -44,15 +47,21 @@ class FileServiceTest {
     @Mock
     private AuditEventRepository auditEventRepository;
 
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private SyncEventRepository syncEventRepository;
+
     @Test
-    void deleteFileThrowsWhenVersionsExist() {
+    void deleteFileSoftDeletesEvenWhenVersionsExist() {
         FileService fileService = new FileService(
                 fileRecordRepository,
                 folderRepository,
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                auditEventService(),
                 null,
                 null,
                 null,
@@ -67,16 +76,11 @@ class FileServiceTest {
         version.setFileId(fileId);
 
         when(fileRecordRepository.findById(fileId)).thenReturn(Optional.of(file));
-        when(fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId)).thenReturn(List.of(version));
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> fileService.deleteFile(fileId, ownerId)
-        );
+        assertDoesNotThrow(() -> fileService.deleteFile(fileId, ownerId));
 
-        assertEquals("File cannot be deleted because versions exist", ex.getMessage());
-        verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
-        verify(fileRecordRepository, never()).delete(any(FileRecord.class));
+        verify(fileRecordRepository).save(file);
+        assertNotNull(file.getDeletedAt());
     }
 
     @Test
@@ -87,7 +91,7 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                auditEventService(),
                 null,
                 null,
                 null,
@@ -99,7 +103,6 @@ class FileServiceTest {
         FileRecord file = file(fileId, ownerId);
 
         when(fileRecordRepository.findById(fileId)).thenReturn(Optional.of(file));
-        when(fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId)).thenReturn(List.of());
 
         assertDoesNotThrow(() -> fileService.deleteFile(fileId, ownerId));
 
@@ -116,7 +119,7 @@ class FileServiceTest {
                 null,
                 fileVersionRepository,
                 shareRepository,
-                new AuditEventService(auditEventRepository, null, null, new ObjectMapper()),
+                auditEventService(),
                 null,
                 null,
                 null,
@@ -136,6 +139,16 @@ class FileServiceTest {
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
         verify(fileRecordRepository, never()).delete(any(FileRecord.class));
         verify(fileRecordRepository, never()).save(any(FileRecord.class));
+    }
+
+    private AuditEventService auditEventService() {
+        return new AuditEventService(
+                auditEventRepository,
+                null,
+                outboxEventRepository,
+                syncEventRepository,
+                new ObjectMapper().registerModule(new JavaTimeModule())
+        );
     }
 
     private FileRecord file(UUID fileId, UUID ownerId) {
