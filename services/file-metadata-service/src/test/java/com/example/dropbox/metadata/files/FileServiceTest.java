@@ -15,6 +15,7 @@ import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.OutboxEventRepository;
+import com.example.dropbox.metadata.common.SyncAudienceService;
 import com.example.dropbox.metadata.common.SyncEventRepository;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
@@ -53,6 +54,9 @@ class FileServiceTest {
     @Mock
     private SyncEventRepository syncEventRepository;
 
+    @Mock
+    private SyncAudienceService syncAudienceService;
+
     @Test
     void deleteFileSoftDeletesEvenWhenVersionsExist() {
         FileService fileService = new FileService(
@@ -62,6 +66,7 @@ class FileServiceTest {
                 fileVersionRepository,
                 shareRepository,
                 auditEventService(),
+                syncAudienceService,
                 null,
                 null,
                 null,
@@ -92,6 +97,7 @@ class FileServiceTest {
                 fileVersionRepository,
                 shareRepository,
                 auditEventService(),
+                syncAudienceService,
                 null,
                 null,
                 null,
@@ -120,6 +126,7 @@ class FileServiceTest {
                 fileVersionRepository,
                 shareRepository,
                 auditEventService(),
+                syncAudienceService,
                 null,
                 null,
                 null,
@@ -147,7 +154,8 @@ class FileServiceTest {
                 null,
                 outboxEventRepository,
                 syncEventRepository,
-                new ObjectMapper().registerModule(new JavaTimeModule())
+                new ObjectMapper().registerModule(new JavaTimeModule()),
+                syncAudienceService
         );
     }
 

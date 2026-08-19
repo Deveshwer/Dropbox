@@ -18,12 +18,14 @@ import com.example.dropbox.metadata.shares.PermissionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import com.example.dropbox.metadata.common.AuditEventService;
+import com.example.dropbox.metadata.common.SyncAudienceService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import com.example.dropbox.metadata.files.FileService;
 import java.util.Comparator;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,7 @@ public class FolderService {
     private final ShareRepository shareRepository;
     private final AuditEventService auditEventService;
     private final FileService fileService;
+    private final SyncAudienceService syncAudienceService;
 
     public FolderResponse create(CreateFolderRequest request, UUID ownerId) {
         Folder parentFolder = null;
@@ -186,6 +189,7 @@ public class FolderService {
         Instant now = Instant.now();
         for (Folder folder : subtree) {
             if (folder.getDeletedAt() == null) {
+                Set<UUID> syncAudience = syncAudienceService.resolveCurrentReadersForFolder(folder.getId());
                 folder.setDeletedAt(now);
                 folder.setUpdatedAt(now);
                 folderRepository.save(folder);
@@ -195,7 +199,8 @@ public class FolderService {
                     ResourceType.FOLDER.name(),
                     folder.getId(),
                     userId,
-                    "name=" + folder.getName()
+                    "name=" + folder.getName(),
+                    syncAudience
                 );
             }
         }
@@ -439,6 +444,7 @@ public class FolderService {
 
         for (int i = subtree.size() - 1; i >= 0; i--) {
             Folder folder = subtree.get(i);
+            Set<UUID> syncAudience = syncAudienceService.resolveCurrentReadersForFolder(folder.getId());
 
             for (FileRecord file : fileRecordRepository.findByFolderId(folder.getId())) {
                 if (file.getDeletedAt() == null) {
@@ -462,7 +468,8 @@ public class FolderService {
                 ResourceType.FOLDER.name(),
                 folder.getId(),
                 userId,
-                details
+                details,
+                syncAudience
             );
         }
     }

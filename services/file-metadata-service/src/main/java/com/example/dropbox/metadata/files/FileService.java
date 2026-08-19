@@ -3,6 +3,7 @@ package com.example.dropbox.metadata.files;
 import com.example.dropbox.metadata.common.ResourceType;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.ResourceNotFoundException;
+import com.example.dropbox.metadata.common.SyncAudienceService;
 import com.example.dropbox.metadata.folders.Folder;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
@@ -14,6 +15,7 @@ import com.example.dropbox.metadata.versions.FileVersionService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,7 @@ public class FileService {
     private final FileVersionRepository fileVersionRepository;
     private final ShareRepository shareRepository;
     private final AuditEventService auditEventService;
+    private final SyncAudienceService syncAudienceService;
     private final FileUploadSessionRepository fileUploadSessionRepository;
     private final FileVersionService fileVersionService;
     private final S3Presigner s3Presigner;
@@ -170,8 +173,7 @@ public class FileService {
             throw new ForbiddenOperationException("User not allowed to delete this file");
         }
 
-        // shareRepository.deleteByResourceTypeAndResourceId(ResourceType.FILE.name(), fileId);
-        // fileRecordRepository.delete(file);
+        Set<UUID> syncAudience = syncAudienceService.resolveCurrentReadersForFile(fileId);
 
         file.setDeletedAt(Instant.now());
         file.setUpdatedAt(Instant.now());
@@ -182,7 +184,8 @@ public class FileService {
             ResourceType.FILE.name(),
             file.getId(),
             userId,
-            "name=" + file.getName()
+            "name=" + file.getName(),
+            syncAudience
         );
     }
 
@@ -234,6 +237,7 @@ public class FileService {
             throw new IllegalArgumentException("File is not deleted");
         }
 
+        Set<UUID> syncAudience = syncAudienceService.resolveCurrentReadersForFile(fileId);
         int deletedVersionCount = deleteVersionObjectsFromStorage(fileId);
 
         file.setCurrentVersionId(null);
@@ -250,7 +254,8 @@ public class FileService {
             ResourceType.FILE.name(),
             file.getId(),
             userId,
-            "name=" + file.getName() + ",deletedVersionCount=" + deletedVersionCount
+            "name=" + file.getName() + ",deletedVersionCount=" + deletedVersionCount,
+            syncAudience
         );
     }
 
@@ -262,6 +267,7 @@ public class FileService {
     public void emptyTrash(UUID userId) {
         List<FileRecord> deletedFiles = fileRecordRepository.findByOwnerIdAndDeletedAtIsNotNull(userId);
         for (FileRecord file : deletedFiles) {
+            Set<UUID> syncAudience = syncAudienceService.resolveCurrentReadersForFile(file.getId());
             int deletedVersionCount = deleteVersionObjectsFromStorage(file.getId());
 
             file.setCurrentVersionId(null);
@@ -280,7 +286,8 @@ public class FileService {
                 userId,
                 "name=" + file.getName()
                         + ",source=emptyTrash"
-                        + ",deletedVersionCount=" + deletedVersionCount
+                        + ",deletedVersionCount=" + deletedVersionCount,
+                syncAudience
             );
         }
     }

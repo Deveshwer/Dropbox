@@ -1,8 +1,8 @@
 package com.example.dropbox.metadata.common;
 
 import java.time.Instant;
-import java.util.UUID;
-import java.util.List;
+import java.util.*;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.dropbox.metadata.shares.PermissionService;
@@ -10,9 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.transaction.Transactional;
-
-import java.util.Map;
-import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +24,8 @@ public class AuditEventService {
     private final SyncEventRepository syncEventRepository;
 
     private final ObjectMapper objectMapper;
+
+    private final SyncAudienceService syncAudienceService;
 
     public List<AuditEventResponse> listEventsForActor(UUID actorId) {
       return auditEventRepository.findByActorIdOrderByCreatedAtDesc(actorId)
@@ -62,6 +61,18 @@ public class AuditEventService {
             UUID actorId,
             String metadata
     ) {
+        recordEvent(eventType, resourceType, resourceId, actorId, metadata, null);
+    }
+
+    @Transactional
+    public void recordEvent(
+            String eventType,
+            String resourceType,
+            UUID resourceId,
+            UUID actorId,
+            String metadata,
+            Set<UUID> syncAudience
+    ) {
         AuditEvent event = new AuditEvent();
         event.setId(UUID.randomUUID());
         event.setEventType(eventType);
@@ -74,13 +85,13 @@ public class AuditEventService {
         auditEventRepository.save(event);
 
         MetadataEventMessage eventMessage = new MetadataEventMessage(
-          event.getId(),
-          event.getEventType(),
-          event.getResourceType(),
-          event.getResourceId(),
-          event.getActorId(),
-          parseMetadata(event.getMetadata()),
-          event.getCreatedAt()
+                event.getId(),
+                event.getEventType(),
+                event.getResourceType(),
+                event.getResourceId(),
+                event.getActorId(),
+                parseMetadata(event.getMetadata()),
+                event.getCreatedAt()
         );
 
         String payload;
@@ -102,9 +113,34 @@ public class AuditEventService {
 
         outboxEventRepository.save(outboxEvent);
 
-        if (isSyncEligibleResource(event.getResourceType())) {
+        Set<UUID> effectiveAudience = syncAudience != null
+                ? syncAudience
+                : resolveDefaultSyncAudience(resourceType, resourceId);
+
+        saveSyncEvents(event, effectiveAudience);
+    }
+
+    private Set<UUID> resolveDefaultSyncAudience(String resourceType, UUID resourceId) {
+        if (ResourceType.FILE.name().equals(resourceType)) {
+            return syncAudienceService.resolveCurrentReadersForFile(resourceId);
+        }
+
+        if (ResourceType.FOLDER.name().equals(resourceType)) {
+            return syncAudienceService.resolveCurrentReadersForFolder(resourceId);
+        }
+
+        return Set.of();
+    }
+
+    private void saveSyncEvents(AuditEvent event, Set<UUID> audience) {
+        if (audience == null || audience.isEmpty()) {
+            return;
+        }
+
+        for (UUID userId : audience) {
             SyncEvent syncEvent = new SyncEvent();
             syncEvent.setEventId(event.getId());
+            syncEvent.setUserId(userId);
             syncEvent.setEventType(event.getEventType());
             syncEvent.setResourceType(event.getResourceType());
             syncEvent.setResourceId(event.getResourceId());
@@ -114,19 +150,37 @@ public class AuditEventService {
 
             syncEventRepository.save(syncEvent);
         }
+    }
 
+    @Transactional
+    public void recordSyncResourceEvent(
+            String eventType,
+            String resourceType,
+            UUID resourceId,
+            UUID actorId,
+            String metadata,
+            Set<UUID> audience
+    ) {
+        if (audience == null || audience.isEmpty()) {
+            return;
+        }
 
-        // if (metadataEventPublisher != null) {
-        //     metadataEventPublisher.publish(new MetadataEventMessage(
-        //         event.getId(),
-        //         event.getEventType(),
-        //         event.getResourceType(),
-        //         event.getResourceId(),
-        //         event.getActorId(),
-        //         parseMetadata(event.getMetadata()),
-        //         event.getCreatedAt()
-        //     ));
-        // }
+        UUID eventId = UUID.randomUUID();
+        Instant createdAt = Instant.now();
+
+        for (UUID userId : audience) {
+            SyncEvent syncEvent = new SyncEvent();
+            syncEvent.setEventId(eventId);
+            syncEvent.setUserId(userId);
+            syncEvent.setEventType(eventType);
+            syncEvent.setResourceType(resourceType);
+            syncEvent.setResourceId(resourceId);
+            syncEvent.setActorId(actorId);
+            syncEvent.setMetadata(metadata);
+            syncEvent.setCreatedAt(createdAt);
+
+            syncEventRepository.save(syncEvent);
+        }
     }
 
     public List<AuditEventResponse> listEventsForResource(String resourceType, UUID resourceId, UUID userId) {
@@ -151,11 +205,6 @@ public class AuditEventService {
               .stream()
               .map(this::toResponse)
               .toList();
-    }
-
-    private boolean isSyncEligibleResource(String resourceType) {
-        return ResourceType.FILE.name().equals(resourceType)
-                || ResourceType.FOLDER.name().equals(resourceType);
     }
 
     private AuditEventResponse toResponse(AuditEvent event) {

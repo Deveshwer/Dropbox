@@ -15,6 +15,7 @@ import com.example.dropbox.metadata.common.AuditEventService;
 import com.example.dropbox.metadata.common.AuditEventRepository;
 import com.example.dropbox.metadata.common.ForbiddenOperationException;
 import com.example.dropbox.metadata.common.OutboxEventRepository;
+import com.example.dropbox.metadata.common.SyncAudienceService;
 import com.example.dropbox.metadata.common.SyncEventRepository;
 import com.example.dropbox.metadata.files.FileRecordRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
@@ -48,6 +49,9 @@ class FolderServiceTest {
     @Mock
     private SyncEventRepository syncEventRepository;
 
+    @Mock
+    private SyncAudienceService syncAudienceService;
+
     @Test
     void deleteFolderDeletesShareRowsAndFolderWhenEmpty() {
         FolderService folderService = new FolderService(
@@ -56,7 +60,8 @@ class FolderServiceTest {
                 null,
                 shareRepository,
                 auditEventService(),
-                null
+                null,
+                syncAudienceService
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -81,7 +86,8 @@ class FolderServiceTest {
                 null,
                 shareRepository,
                 auditEventService(),
-                null
+                null,
+                syncAudienceService
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -109,7 +115,8 @@ class FolderServiceTest {
                 null,
                 shareRepository,
                 auditEventService(),
-                null
+                null,
+                syncAudienceService
         );
         UUID folderId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
@@ -132,7 +139,8 @@ class FolderServiceTest {
                 null,
                 outboxEventRepository,
                 syncEventRepository,
-                new ObjectMapper().registerModule(new JavaTimeModule())
+                new ObjectMapper().registerModule(new JavaTimeModule()),
+                syncAudienceService
         );
     }
 

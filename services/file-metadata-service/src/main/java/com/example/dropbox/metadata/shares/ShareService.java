@@ -9,8 +9,9 @@ import com.example.dropbox.metadata.folders.Folder;
 import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.users.UserRepository;
 import java.time.Instant;
-import java.util.UUID;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,6 +79,16 @@ public class ShareService {
                     + ",targetResourceId=" + saved.getResourceId()
                     + ",sharedWithUserId=" + saved.getSharedWithUserId()
                     + ",permission=" + saved.getPermission()
+        );
+        auditEventService.recordSyncResourceEvent(
+                "RESOURCE_SHARED",
+                saved.getResourceType(),
+                saved.getResourceId(),
+                ownerId,
+                "shareId=" + saved.getId()
+                        + ",sharedWithUserId=" + saved.getSharedWithUserId()
+                        + ",permission=" + saved.getPermission(),
+                Set.of(saved.getSharedWithUserId())
         );
         return toResponse(saved);
     }
@@ -158,6 +169,15 @@ public class ShareService {
             "targetResourceType=" + saved.getResourceType()
                     + ",targetResourceId=" + saved.getResourceId()
                     + ",sharedWithUserId=" + saved.getSharedWithUserId()
+        );
+        auditEventService.recordSyncResourceEvent(
+                "RESOURCE_UNSHARED",
+                saved.getResourceType(),
+                saved.getResourceId(),
+                ownerId,
+                "shareId=" + saved.getId()
+                        + ",sharedWithUserId=" + saved.getSharedWithUserId(),
+                Set.of(saved.getSharedWithUserId())
         );
 
         return toResponse(saved);

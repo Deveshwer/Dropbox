@@ -21,8 +21,11 @@ public class SyncEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long cursor;
 
-    @Column(name = "event_id", nullable = false, unique = true)
+    @Column(name = "event_id", nullable = false)
     private UUID eventId;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     @Column(name = "event_type", nullable = false)
     private String eventType;

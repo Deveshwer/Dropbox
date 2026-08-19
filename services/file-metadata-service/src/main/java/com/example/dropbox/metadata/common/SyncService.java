@@ -1,7 +1,5 @@
 package com.example.dropbox.metadata.common;
 
-import com.example.dropbox.metadata.shares.PermissionService;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,65 +13,30 @@ import org.springframework.stereotype.Service;
 public class SyncService {
 
     private static final int MAX_LIMIT = 200;
-    private static final int SCAN_MULTIPLIER = 3;
-    private static final int MAX_SCAN_ROUNDS = 5;
 
     private final SyncEventRepository syncEventRepository;
-    private final PermissionService permissionService;
 
     public SyncBootstrapResponse bootstrap(Long cursor, Integer limit, UUID userId) {
         long safeCursor = cursor == null ? 0L : cursor;
         int safeLimit = limit == null ? 100 : Math.min(Math.max(limit, 1), MAX_LIMIT);
 
-        List<SyncEventResponse> visibleEvents = new ArrayList<>();
-        long lastScannedCursor = safeCursor;
-        int batchSize = Math.min(MAX_LIMIT, safeLimit * SCAN_MULTIPLIER);
+        List<SyncEvent> events = syncEventRepository.findByUserIdAndCursorGreaterThanOrderByCursorAsc(
+                userId,
+                safeCursor,
+                PageRequest.of(0, safeLimit)
+        );
 
-        for (int round = 0; round < MAX_SCAN_ROUNDS && visibleEvents.size() < safeLimit; round++) {
-            List<SyncEvent> batch = syncEventRepository.findByCursorGreaterThanOrderByCursorAsc(
-                    lastScannedCursor,
-                    PageRequest.of(0, batchSize)
-            );
+        long nextCursor = events.isEmpty()
+                ? safeCursor
+                : events.get(events.size() - 1).getCursor();
 
-            if (batch.isEmpty()) {
-                break;
-            }
-
-            for (SyncEvent event : batch) {
-                lastScannedCursor = event.getCursor();
-
-                if (canUserSeeEvent(event, userId)) {
-                    visibleEvents.add(toResponse(event));
-                    if (visibleEvents.size() == safeLimit) {
-                        break;
-                    }
-                }
-            }
-
-            if (batch.size() < batchSize) {
-                break;
-            }
-        }
-
-        boolean hasMore = syncEventRepository.existsByCursorGreaterThan(lastScannedCursor);
+        boolean hasMore = syncEventRepository.existsByUserIdAndCursorGreaterThan(userId, nextCursor);
 
         return new SyncBootstrapResponse(
-                visibleEvents,
-                lastScannedCursor,
+                events.stream().map(this::toResponse).toList(),
+                nextCursor,
                 hasMore
         );
-    }
-
-    private boolean canUserSeeEvent(SyncEvent event, UUID userId) {
-        if (ResourceType.FILE.name().equals(event.getResourceType())) {
-            return permissionService.canReadFile(event.getResourceId(), userId);
-        }
-
-        if (ResourceType.FOLDER.name().equals(event.getResourceType())) {
-            return permissionService.canReadFolder(event.getResourceId(), userId);
-        }
-
-        return false;
     }
 
     private Map<String, Object> parseMetadata(String metadata) {
