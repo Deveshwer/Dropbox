@@ -14,6 +14,7 @@ import com.example.dropbox.metadata.versions.FileVersionResponse;
 import com.example.dropbox.metadata.versions.FileVersionService;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +44,12 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 @RequiredArgsConstructor
 public class FileService {
 
+    private static final long DEFAULT_PART_SIZE_BYTES = 5L * 1024L * 1024L;
+    private static final String MULTIPART_UPLOAD_METHOD = "S3_MULTIPART_PARTS";
+    private static final String PARTS_DOWNLOAD_METHOD = "S3_PRESIGNED_GET_PARTS";
+    private static final String MANIFEST_STORAGE_PREFIX = "manifest:";
+    private static final String SINGLE_OBJECT_DOWNLOAD_METHOD = "S3_PRESIGNED_GET";
+
     private final FileRecordRepository fileRecordRepository;
     private final FolderRepository folderRepository;
     private final PermissionService permissionService;
@@ -51,6 +58,7 @@ public class FileService {
     private final AuditEventService auditEventService;
     private final SyncAudienceService syncAudienceService;
     private final FileUploadSessionRepository fileUploadSessionRepository;
+    private final FileUploadPartRepository fileUploadPartRepository;
     private final FileVersionService fileVersionService;
     private final S3Presigner s3Presigner;
     private final S3StorageProperties s3StorageProperties;
@@ -340,21 +348,27 @@ public class FileService {
         FileVersion version = fileVersionRepository.findById(file.getCurrentVersionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Current version not found"));
 
-        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
-          .bucket(s3StorageProperties.bucket())
-          .key(version.getStorageKey())
-          .build();
+        if (isMultipartVersion(version)) {
+            UUID sessionId = parseManifestSessionId(version.getStorageKey());
+            List<FileUploadPart> parts = fileUploadPartRepository.findBySessionIdOrderByPartNumberAsc(sessionId);
 
-        try {
-            s3Client.headObject(headObjectRequest);
-        } catch (NoSuchKeyException ex) {
-            throw new ResourceNotFoundException("Current file object not found in storage");
-        } catch (S3Exception ex) {
-            if (ex.statusCode() == 404) {
-                throw new ResourceNotFoundException("Current file object not found in storage");
-            }
-            throw ex;
+            return new FileDownloadResponse(
+                    file.getId(),
+                    version.getId(),
+                    file.getName(),
+                    PARTS_DOWNLOAD_METHOD,
+                    version.getStorageKey(),
+                    version.getMimeType(),
+                    version.getSizeBytes(),
+                    version.getChecksum(),
+                    null,
+                    parts.stream()
+                            .map(part -> toDownloadPartResponse(part, file.getName(), version.getMimeType()))
+                            .toList()
+            );
         }
+
+        verifyObjectExists(version.getStorageKey());
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(s3StorageProperties.bucket())
@@ -374,11 +388,13 @@ public class FileService {
                 file.getId(),
                 version.getId(),
                 file.getName(),
+                SINGLE_OBJECT_DOWNLOAD_METHOD,
                 version.getStorageKey(),
                 version.getMimeType(),
                 version.getSizeBytes(),
                 version.getChecksum(),
-                presignedRequest.url().toString()
+                presignedRequest.url().toString(),
+                List.of()
         );
     }
 
@@ -398,17 +414,15 @@ public class FileService {
             throw new IllegalArgumentException("sizeBytes must be greater than 0");
         }
 
-        String safeFileName = request.fileName().trim().replaceAll("\\s+", "-");
-        String storageKey = "users/" + userId
+        String uploadPrefix = "users/" + userId
                 + "/files/" + fileId
-                + "/uploads/" + Instant.now().toEpochMilli()
-                + "-" + safeFileName;
+                + "/uploads/" + UUID.randomUUID();
 
         FileUploadSession session = new FileUploadSession();
         session.setId(UUID.randomUUID());
         session.setFileId(file.getId());
         session.setInitiatedBy(userId);
-        session.setStorageKey(storageKey);
+        session.setStorageKey(uploadPrefix);
         session.setFileName(request.fileName().trim());
         session.setMimeType(request.mimeType());
         session.setSizeBytes(request.sizeBytes());
@@ -418,38 +432,89 @@ public class FileService {
         session.setExpiresAt(now.plusSeconds(s3StorageProperties.uploadUrlExpiryMinutes() * 60));
 
         fileUploadSessionRepository.save(session);
+        List<FileUploadPart> parts = createPendingParts(session);
+        fileUploadPartRepository.saveAll(parts);
 
         auditEventService.recordEvent(
           "UPLOAD_INITIATED",
           ResourceType.FILE.name(),
           file.getId(),
           userId,
-          "storageKey=" + storageKey
+          "uploadSessionId=" + session.getId()
+                  + ", storageKey=" + uploadPrefix
                   + ", mimeType=" + request.mimeType()
                   + ", sizeBytes=" + request.sizeBytes()
                   + ", expiresAt=" + session.getExpiresAt()
         );
 
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(s3StorageProperties.bucket())
-                .key(storageKey)
-                .contentType(request.mimeType())
-                .build();
-
-        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(s3StorageProperties.uploadUrlExpiryMinutes()))
-                .putObjectRequest(putObjectRequest)
-                .build();
-
-        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
-
         return new InitiateFileUploadResponse(
                 file.getId(),
-                storageKey,
-                "S3_PRESIGNED_PUT",
-                presignedRequest.url().toString(),
+                session.getId(),
+                MULTIPART_UPLOAD_METHOD,
+                DEFAULT_PART_SIZE_BYTES,
+                session.getSizeBytes(),
+                parts.stream().map(part -> toUploadPartResponse(part, true, session.getMimeType())).toList(),
                 session.getExpiresAt()
         );
+    }
+
+    public ResumeFileUploadResponse getUploadSession(UUID fileId, UUID sessionId, UUID userId) {
+        FileUploadSession session = getUploadSessionForUser(fileId, sessionId, userId);
+
+        return new ResumeFileUploadResponse(
+                session.getFileId(),
+                session.getId(),
+                MULTIPART_UPLOAD_METHOD,
+                DEFAULT_PART_SIZE_BYTES,
+                session.getSizeBytes(),
+                session.getMimeType(),
+                session.getStatus(),
+                fileUploadPartRepository.findBySessionIdOrderByPartNumberAsc(sessionId)
+                        .stream()
+                        .map(part -> toUploadPartResponse(
+                                part,
+                                FileUploadPartStatus.PENDING.name().equals(part.getStatus()),
+                                session.getMimeType()
+                        ))
+                        .toList(),
+                session.getExpiresAt()
+        );
+    }
+
+    @Transactional
+    public UploadPartResponse markPartUploaded(
+            UUID fileId,
+            UUID sessionId,
+            Integer partNumber,
+            MarkUploadPartUploadedRequest request,
+            UUID userId
+    ) {
+        FileUploadSession session = getUploadSessionForUser(fileId, sessionId, userId);
+        if (isExpired(session)) {
+            throw new IllegalArgumentException("Upload session has expired");
+        }
+
+        FileUploadPart part = fileUploadPartRepository.findBySessionIdAndPartNumber(sessionId, partNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Upload part not found"));
+
+        verifyUploadedObject(part.getStorageKey(), part.getSizeBytes(), session.getMimeType());
+
+        part.setStatus(FileUploadPartStatus.UPLOADED.name());
+        part.setChecksum(request == null ? null : request.checksum());
+        part.setUploadedAt(Instant.now());
+        fileUploadPartRepository.save(part);
+
+        auditEventService.recordEvent(
+                "UPLOAD_PART_UPLOADED",
+                ResourceType.FILE.name(),
+                fileId,
+                userId,
+                "uploadSessionId=" + sessionId
+                        + ", partNumber=" + partNumber
+                        + ", storageKey=" + part.getStorageKey()
+        );
+
+        return toUploadPartResponse(part, false, session.getMimeType());
     }
 
     private boolean isExpired(FileUploadSession session) {
@@ -459,10 +524,10 @@ public class FileService {
     @Transactional
     public FileVersionResponse completeUpload(UUID fileId, CompleteFileUploadRequest request, UUID userId) {
         FileUploadSession session = fileUploadSessionRepository
-                .findByFileIdAndInitiatedByAndStorageKeyAndStatus(
+                .findByFileIdAndInitiatedByAndIdAndStatus(
                         fileId,
                         userId,
-                        request.storageKey(),
+                        request.uploadSessionId(),
                         FileUploadStatus.INITIATED.name()
                 )
                 .orElseThrow(() -> new IllegalArgumentException("No initiated upload session found for this file and storageKey"));
@@ -475,15 +540,22 @@ public class FileService {
             throw new IllegalArgumentException("sizeBytes does not match initiated upload");
         }
 
-        verifyUploadedObject(request.storageKey(), request.sizeBytes(), request.mimeType());
-
         if (isExpired(session)) {
             throw new IllegalArgumentException("Upload session has expired");
         }
 
+        List<FileUploadPart> parts = fileUploadPartRepository.findBySessionIdOrderByPartNumberAsc(session.getId());
+        if (parts.isEmpty()) {
+            throw new IllegalArgumentException("Upload session has no parts");
+        }
+
+        if (fileUploadPartRepository.existsBySessionIdAndStatus(session.getId(), FileUploadPartStatus.PENDING.name())) {
+            throw new IllegalArgumentException("Cannot complete upload while parts are still pending");
+        }
+
         CreateFileVersionRequest versionRequest = new CreateFileVersionRequest(
                 request.status(),
-                request.storageKey(),
+                MANIFEST_STORAGE_PREFIX + session.getId(),
                 request.sizeBytes(),
                 request.mimeType(),
                 request.checksum()
@@ -502,6 +574,7 @@ public class FileService {
           userId,
           "versionId=" + response.id()
                   + ", versionNumber=" + response.versionNumber()
+                  + ", uploadSessionId=" + session.getId()
                   + ", storageKey=" + response.storageKey()
         );
 
@@ -528,11 +601,131 @@ public class FileService {
     private int deleteVersionObjectsFromStorage(UUID fileId) {
         List<FileVersion> versions = fileVersionRepository.findByFileIdOrderByVersionNumberAsc(fileId);
         for (FileVersion version : versions) {
-            if (version.getStorageKey() != null && !version.getStorageKey().isBlank()) {
+            if (isMultipartVersion(version)) {
+                UUID sessionId = parseManifestSessionId(version.getStorageKey());
+                fileUploadPartRepository.findBySessionIdOrderByPartNumberAsc(sessionId)
+                        .forEach(part -> deleteObjectFromStorage(part.getStorageKey()));
+            } else if (version.getStorageKey() != null && !version.getStorageKey().isBlank()) {
                 deleteObjectFromStorage(version.getStorageKey());
             }
         }
         return versions.size();
+    }
+
+    private FileUploadSession getUploadSessionForUser(UUID fileId, UUID sessionId, UUID userId) {
+        FileUploadSession session = fileUploadSessionRepository
+                .findByFileIdAndInitiatedByAndId(
+                        fileId,
+                        userId,
+                        sessionId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Upload session not found"));
+
+        if (!FileUploadStatus.INITIATED.name().equals(session.getStatus())) {
+            throw new IllegalArgumentException("Upload session is not active");
+        }
+
+        return session;
+    }
+
+    private List<FileUploadPart> createPendingParts(FileUploadSession session) {
+        List<FileUploadPart> parts = new ArrayList<>();
+        long remainingBytes = session.getSizeBytes();
+        int partNumber = 1;
+
+        while (remainingBytes > 0) {
+            long partSize = Math.min(DEFAULT_PART_SIZE_BYTES, remainingBytes);
+            FileUploadPart part = new FileUploadPart();
+            part.setId(UUID.randomUUID());
+            part.setSessionId(session.getId());
+            part.setPartNumber(partNumber);
+            part.setStorageKey(session.getStorageKey() + "/parts/" + partNumber);
+            part.setSizeBytes(partSize);
+            part.setStatus(FileUploadPartStatus.PENDING.name());
+            part.setCreatedAt(session.getCreatedAt());
+            parts.add(part);
+
+            remainingBytes -= partSize;
+            partNumber++;
+        }
+
+        return parts;
+    }
+
+    private UploadPartResponse toUploadPartResponse(FileUploadPart part, boolean includeUploadUrl, String mimeType) {
+        String uploadUrl = includeUploadUrl ? createPartUploadUrl(part, mimeType) : null;
+        return new UploadPartResponse(
+                part.getPartNumber(),
+                part.getStorageKey(),
+                part.getSizeBytes(),
+                part.getStatus(),
+                uploadUrl
+        );
+    }
+
+    private String createPartUploadUrl(FileUploadPart part, String mimeType) {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(s3StorageProperties.bucket())
+                .key(part.getStorageKey())
+                .contentType(mimeType)
+                .contentLength(part.getSizeBytes())
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(s3StorageProperties.uploadUrlExpiryMinutes()))
+                .putObjectRequest(putObjectRequest)
+                .build();
+
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        return presignedRequest.url().toString();
+    }
+
+    private FileDownloadPartResponse toDownloadPartResponse(FileUploadPart part, String fileName, String mimeType) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(s3StorageProperties.bucket())
+                .key(part.getStorageKey())
+                .responseContentType(mimeType)
+                .responseContentDisposition("attachment; filename=\"" + fileName + ".part" + part.getPartNumber() + "\"")
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(s3StorageProperties.downloadUrlExpiryMinutes()))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        return new FileDownloadPartResponse(
+                part.getPartNumber(),
+                part.getStorageKey(),
+                part.getSizeBytes(),
+                presignedRequest.url().toString()
+        );
+    }
+
+    private void verifyObjectExists(String storageKey) {
+        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                .bucket(s3StorageProperties.bucket())
+                .key(storageKey)
+                .build();
+
+        try {
+            s3Client.headObject(headObjectRequest);
+        } catch (NoSuchKeyException ex) {
+            throw new ResourceNotFoundException("Current file object not found in storage");
+        } catch (S3Exception ex) {
+            if (ex.statusCode() == 404) {
+                throw new ResourceNotFoundException("Current file object not found in storage");
+            }
+            throw ex;
+        }
+    }
+
+    private boolean isMultipartVersion(FileVersion version) {
+        return version.getStorageKey() != null && version.getStorageKey().startsWith(MANIFEST_STORAGE_PREFIX);
+    }
+
+    private UUID parseManifestSessionId(String storageKey) {
+        return UUID.fromString(storageKey.substring(MANIFEST_STORAGE_PREFIX.length()));
     }
 
     private FileResponse toResponse(FileRecord file) {

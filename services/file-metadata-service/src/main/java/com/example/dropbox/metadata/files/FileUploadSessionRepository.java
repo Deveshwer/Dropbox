@@ -20,6 +20,19 @@ public interface FileUploadSessionRepository extends JpaRepository<FileUploadSes
             String status
     );
 
+    Optional<FileUploadSession> findByFileIdAndInitiatedByAndId(
+            UUID fileId,
+            UUID initiatedBy,
+            UUID id
+    );
+
+    Optional<FileUploadSession> findByFileIdAndInitiatedByAndIdAndStatus(
+            UUID fileId,
+            UUID initiatedBy,
+            UUID id,
+            String status
+    );
+
     long deleteByStatusAndExpiresAtBefore(String status, Instant expiresAt);
 
     void deleteByFileId(UUID fileId);

@@ -21,6 +21,7 @@ import com.example.dropbox.metadata.folders.FolderRepository;
 import com.example.dropbox.metadata.shares.ShareRepository;
 import com.example.dropbox.metadata.versions.FileVersion;
 import com.example.dropbox.metadata.versions.FileVersionRepository;
+import com.example.dropbox.metadata.versions.FileVersionService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +58,9 @@ class FileServiceTest {
     @Mock
     private SyncAudienceService syncAudienceService;
 
+    @Mock
+    private FileUploadPartRepository fileUploadPartRepository;
+
     @Test
     void deleteFileSoftDeletesEvenWhenVersionsExist() {
         FileService fileService = new FileService(
@@ -68,6 +72,7 @@ class FileServiceTest {
                 auditEventService(),
                 syncAudienceService,
                 null,
+                fileUploadPartRepository,
                 null,
                 null,
                 null,
@@ -99,6 +104,7 @@ class FileServiceTest {
                 auditEventService(),
                 syncAudienceService,
                 null,
+                fileUploadPartRepository,
                 null,
                 null,
                 null,
@@ -128,6 +134,7 @@ class FileServiceTest {
                 auditEventService(),
                 syncAudienceService,
                 null,
+                fileUploadPartRepository,
                 null,
                 null,
                 null,
@@ -146,6 +153,59 @@ class FileServiceTest {
         verify(shareRepository, never()).deleteByResourceTypeAndResourceId(any(), any());
         verify(fileRecordRepository, never()).delete(any(FileRecord.class));
         verify(fileRecordRepository, never()).save(any(FileRecord.class));
+    }
+
+    @Test
+    void completeUploadRejectsPendingParts() {
+        FileUploadSessionRepository uploadSessionRepository = org.mockito.Mockito.mock(FileUploadSessionRepository.class);
+        FileVersionService fileVersionService = org.mockito.Mockito.mock(FileVersionService.class);
+        FileService fileService = new FileService(
+                fileRecordRepository,
+                folderRepository,
+                null,
+                fileVersionRepository,
+                shareRepository,
+                auditEventService(),
+                syncAudienceService,
+                uploadSessionRepository,
+                fileUploadPartRepository,
+                fileVersionService,
+                null,
+                null,
+                null
+        );
+        UUID fileId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+        FileUploadSession session = new FileUploadSession();
+        session.setId(sessionId);
+        session.setFileId(fileId);
+        session.setInitiatedBy(userId);
+        session.setMimeType("text/plain");
+        session.setSizeBytes(10L);
+        session.setStatus(FileUploadStatus.INITIATED.name());
+        session.setExpiresAt(Instant.now().plusSeconds(60));
+
+        when(uploadSessionRepository.findByFileIdAndInitiatedByAndIdAndStatus(
+                fileId,
+                userId,
+                sessionId,
+                FileUploadStatus.INITIATED.name()
+        )).thenReturn(Optional.of(session));
+        when(fileUploadPartRepository.existsBySessionIdAndStatus(sessionId, FileUploadPartStatus.PENDING.name()))
+                .thenReturn(true);
+
+        CompleteFileUploadRequest request = new CompleteFileUploadRequest(
+                "ACTIVE",
+                sessionId,
+                10L,
+                "text/plain",
+                "checksum"
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> fileService.completeUpload(fileId, request, userId));
+
+        verify(fileVersionService, never()).create(any(), any(), any());
     }
 
     private AuditEventService auditEventService() {

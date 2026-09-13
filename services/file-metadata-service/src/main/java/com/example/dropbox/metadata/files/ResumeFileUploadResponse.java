@@ -4,12 +4,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record InitiateFileUploadResponse(
+public record ResumeFileUploadResponse(
         UUID fileId,
         UUID uploadSessionId,
         String uploadMethod,
         Long partSizeBytes,
         Long sizeBytes,
+        String mimeType,
+        String status,
         List<UploadPartResponse> parts,
         Instant expiresAt
 ) {

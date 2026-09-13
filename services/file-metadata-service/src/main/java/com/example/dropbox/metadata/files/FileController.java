@@ -99,6 +99,26 @@ public class FileController {
         return fileService.initiateUpload(fileId, request, user.getId());
     }
 
+    @GetMapping("/{fileId}/uploads/{sessionId}")
+    public ResumeFileUploadResponse getUploadSession(
+            @PathVariable UUID fileId,
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.getUploadSession(fileId, sessionId, user.getId());
+    }
+
+    @PatchMapping("/{fileId}/uploads/{sessionId}/parts/{partNumber}")
+    public UploadPartResponse markPartUploaded(
+            @PathVariable UUID fileId,
+            @PathVariable UUID sessionId,
+            @PathVariable Integer partNumber,
+            @RequestBody(required = false) MarkUploadPartUploadedRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        return fileService.markPartUploaded(fileId, sessionId, partNumber, request, user.getId());
+    }
+
     @PostMapping("/{fileId}/uploads/complete")
     public FileVersionResponse completeUpload(
             @PathVariable UUID fileId,
